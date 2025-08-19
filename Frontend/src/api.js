@@ -13,19 +13,15 @@ const client = axios.create({
 
 client.interceptors.response.use(
   (response) => {
-    // backend returns JSON like: { statusCode, data, message, success }
     const json = response.data;
     if (!json || typeof json !== "object") {
       return Promise.reject(new Error("Invalid JSON response from server"));
     }
-
-    // If HTTP status is not 2xx
     const httpOk = response.status >= 200 && response.status < 300;
     if (!httpOk || json.success === false) {
       const msg = json.message || "Request failed";
       return Promise.reject(new Error(msg));
     }
-
     return json.data;
   },
   (error) => {
@@ -35,7 +31,6 @@ client.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
 
 export const signup = (username, email, password) =>
   client.post("/api/v1/auth/signup", { username, email, password });
@@ -55,3 +50,23 @@ export const verifyEmail = (verificationToken, verificationCode) =>
 export const logout = () => client.post("/api/v1/auth/logout");
 
 export const getUser = () => client.get("/api/v1/user/get-user");
+
+export const getSubjects = () => client.get("/api/v1/subjects");
+
+export const enrollInSubject = (subjectId) => client.post(`/api/v1/progress/enroll/${subjectId}`);
+
+export const getStudentProgress = (subjectId) => client.get(`/api/v1/progress/subject/${subjectId}`);
+
+export const getModule = (moduleId) => client.get(`/api/v1/modules/${moduleId}`);
+
+export const submitQuiz = (moduleId, answers) => 
+  client.post(`/api/v1/quizzes/${moduleId}/submit`, { answers });
+
+export const getAttemptHistory = (userId) => client.get(`/api/v1/attempts/user/${userId}`);
+
+// ... (Teacher)
+export const getStudentsProgress = () => client.get("/api/v1/admin/students-progress");
+export const getStudentDetails = (studentId) => client.get(`/api/v1/admin/student/${studentId}`);
+
+export const generateReport = (studentId, subjectId) => client.post('/api/v1/reports/generate', { userId: studentId, subjectId });
+export const getReports = (studentId) => client.get(`/api/v1/reports/user/${studentId}`);

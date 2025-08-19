@@ -37,46 +37,59 @@ const getSubjectById = asyncHandler(async (req, res) => {
  * POST /api/v1/subjects/seed
  * Seed sample subjects & modules for C++ and OOP. Run once.
  */
-// ... other functions (getSubjects, getSubjectById) remain the same ...
-
-/**
- * POST /api/v1/subjects/seed
- * Seed sample subjects & modules for C++ and OOP. Run once.
- */
 const seedSubjects = asyncHandler(async (req, res) => {
-  // Check if seed data already exists to prevent duplicates
-  const existing = await Subject.findOne({ key: "cpp" });
-  if (existing) {
-    return res.status(200).json(new apiResponse(200, { subject: existing }, "Seed data already exists"));
-  }
+    // Using Promise.all to run seed operations in parallel for efficiency
+    await Promise.all([
+        seedCppSubject(),
+        seedOopSubject()
+    ]);
 
-  // 1. Create the Subject first
-  const cppSubject = await Subject.create({
-    key: "cpp",
-    title: "C++ Programming",
-    modules: [] // Start with an empty array
-  });
-
-  // 2. Define the modules with the new subjectId
-  const cppModuleData = [
-    { order: 1, title: "Intro to C++", seedTopic: "History & setup, structure of a C++ program", subjectId: cppSubject._id },
-    { order: 2, title: "Variables & Types", seedTopic: "Primitive types, variables, constants", subjectId: cppSubject._id },
-    { order: 3, title: "Control Flow", seedTopic: "if/else, loops, switch", subjectId: cppSubject._id },
-    { order: 4, title: "Functions", seedTopic: "Function declaration, parameters, return", subjectId: cppSubject._id },
-    { order: 5, title: "Pointers", seedTopic: "Pointers, references, basics of memory", subjectId: cppSubject._id },
-    { order: 6, title: "OOP Basics", seedTopic: "Classes, objects, encapsulation", subjectId: cppSubject._id }
-  ];
-
-  // 3. Create all modules at once
-  const createdModules = await Module.insertMany(cppModuleData);
-
-  // 4. Update the subject with the newly created module IDs
-  cppSubject.modules = createdModules.map(m => m._id);
-  await cppSubject.save();
-
-  const finalSubject = await Subject.findById(cppSubject._id).populate('modules');
-
-  return res.status(201).json(new apiResponse(201, { subject: finalSubject }, "Seed created successfully"));
+    const allSubjects = await Subject.find().populate('modules');
+    return res.status(201).json(new apiResponse(201, { subjects: allSubjects }, "Seed completed successfully"));
 });
+
+// Helper function to seed the C++ subject
+async function seedCppSubject() {
+    const existing = await Subject.findOne({ key: "cpp" });
+    if (existing) {
+        console.log("C++ subject already exists. Skipping.");
+        return;
+    }
+
+    const subject = await Subject.create({ key: "cpp", title: "C++ Programming", modules: [] });
+    const moduleData = [
+        { order: 1, title: "Intro to C++", seedTopic: "History & setup, structure of a C++ program", subjectId: subject._id },
+        { order: 2, title: "Variables & Types", seedTopic: "Primitive types, variables, constants in C++", subjectId: subject._id },
+        { order: 3, title: "Control Flow", seedTopic: "if/else, loops, switch statements in C++", subjectId: subject._id },
+        { order: 4, title: "Functions", seedTopic: "Function declaration, parameters, return values in C++", subjectId: subject._id },
+        { order: 5, title: "Pointers", seedTopic: "Pointers, references, and basics of memory management in C++", subjectId: subject._id },
+    ];
+    const createdModules = await Module.insertMany(moduleData);
+    subject.modules = createdModules.map(m => m._id);
+    await subject.save();
+    console.log("C++ subject seeded successfully.");
+}
+
+// Helper function to seed the OOP subject
+async function seedOopSubject() {
+    const existing = await Subject.findOne({ key: "oop" });
+    if (existing) {
+        console.log("OOP subject already exists. Skipping.");
+        return;
+    }
+
+    const subject = await Subject.create({ key: "oop", title: "Object-Oriented Programming", modules: [] });
+    const moduleData = [
+        { order: 1, title: "Core OOP Concepts", seedTopic: "Introduction to Encapsulation, Abstraction, Inheritance, and Polymorphism", subjectId: subject._id },
+        { order: 2, title: "Classes and Objects", seedTopic: "Defining classes, creating objects, constructors, and destructors", subjectId: subject._id },
+        { order: 3, title: "Inheritance", seedTopic: "Types of inheritance, base and derived classes, access control", subjectId: subject._id },
+        { order: 4, title: "Polymorphism", seedTopic: "Function overloading, virtual functions, and runtime polymorphism", subjectId: subject._id },
+    ];
+    const createdModules = await Module.insertMany(moduleData);
+    subject.modules = createdModules.map(m => m._id);
+    await subject.save();
+    console.log("OOP subject seeded successfully.");
+}
+
 
 export { getSubjects, getSubjectById, seedSubjects };

@@ -94,3 +94,52 @@ export async function generateRemedialLesson(quiz, attempt, moduleTitle) {
         throw new apiError(500, `LLM generateRemedialLesson failed: ${err.message}`);
     }
 }
+
+
+const reportSchema = z.object({
+  studentPerformanceSummary: z.string().describe("A brief, one-paragraph summary of the student's overall performance, mentioning trends over time."),
+  strengths: z.array(z.string()).describe("A list of 2-3 key topics or areas where the student has demonstrated strong understanding."),
+  areasForImprovement: z.array(z.string()).describe("A list of 2-3 specific topics where the student struggled, based on failed quiz attempts."),
+  actionableSuggestions: z.array(z.string()).describe("A list of 2-3 concrete, actionable suggestions for the student to improve their understanding in the identified weak areas.")
+});
+
+const reportChain = llm.withStructuredOutput(reportSchema);
+
+export async function generateReport(student, attempts) {
+  try {
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", "You are an expert educational analyst. Your task is to provide a concise, insightful performance report for a student based on their quiz history. The output must be in a structured JSON format."],
+      ["human", `Analyze the quiz attempt history for the student named {studentName}.
+      
+      Here is their attempt data: {attemptData}
+      
+      Based on this data, please generate a performance report that includes:
+      1. A brief summary of their overall performance.
+      2. 2-3 key strengths.
+      3. 2-3 areas for improvement.
+      4. 2-3 actionable suggestions for them.
+      Focus on patterns and specific topics derived from the module titles.`
+      ],
+    ]);
+
+    const chain = prompt.pipe(reportChain);
+
+    const formattedAttempts = attempts.map(a => ({
+      module: a.moduleId.title,
+      score: a.score,
+      passed: a.passed,
+      date: a.createdAt.toDateString()
+    }));
+
+    const result = await chain.invoke({
+      studentName: student.username,
+      attemptData: JSON.stringify(formattedAttempts, null, 2)
+    });
+    
+    return result;
+
+  } catch (err) {
+    console.error("Error in generateReport:", err);
+    throw new apiError(500, `LLM generateReport failed: ${err.message}`);
+  }
+}

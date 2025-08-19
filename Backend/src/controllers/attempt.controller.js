@@ -5,7 +5,19 @@ import { apiResponse } from "../utils/apiResponse.js";
 
 const getAttemptsByUser = asyncHandler(async (req, res) => {
   const { userId } = req.params;
-  const attempts = await Attempt.find({ userId }).populate('moduleId', 'title').sort({ createdAt: -1 });
+  
+  // We now populate the moduleId, and within that, we also populate the module's subjectId
+  const attempts = await Attempt.find({ userId })
+    .populate({
+        path: 'moduleId',
+        select: 'title subjectId', // Select title and subjectId from module
+        populate: {
+            path: 'subjectId',
+            select: 'title' // Select title from subject
+        }
+    })
+    .sort({ createdAt: -1 });
+
   return res.status(200).json(new apiResponse(200, { attempts }, "Attempts retrieved"));
 });
 
