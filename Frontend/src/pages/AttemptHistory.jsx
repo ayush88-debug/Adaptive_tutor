@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthProvider';
 import * as api from '../api';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge"; // Correctly importing from its own file
+import { Badge } from "@/components/ui/badge";
 
 const AttemptHistory = () => {
   const { user } = useAuth();
@@ -42,6 +42,7 @@ const AttemptHistory = () => {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Subject</TableHead>
               <TableHead>Module</TableHead>
               <TableHead className="text-center">Score</TableHead>
               <TableHead className="text-center">Result</TableHead>
@@ -51,6 +52,8 @@ const AttemptHistory = () => {
           <TableBody>
             {attempts.map((attempt) => (
               <TableRow key={attempt._id}>
+                {/* Add the new TableCell for the Subject Title */}
+                <TableCell className="font-medium text-slate-600">{attempt.moduleId?.subjectId?.title || 'Unknown Subject'}</TableCell>
                 <TableCell className="font-medium">{attempt.moduleId?.title || 'Unknown Module'}</TableCell>
                 <TableCell className="text-center">{attempt.score}%</TableCell>
                 <TableCell className="text-center">

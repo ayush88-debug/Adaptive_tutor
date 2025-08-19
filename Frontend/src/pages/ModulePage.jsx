@@ -89,13 +89,14 @@ const ModulePage = () => {
   if (error) return <div className="text-center p-8 text-red-500 font-semibold">{error}</div>;
   if (!moduleData) return <div className="text-center p-8">Module data not found.</div>;
 
-  const { content, quizId } = moduleData;
+  const { content, quizId, subjectId, isCompleted } = moduleData;
 
   return (
     <div>
       {view === 'lesson' && content && (
         <Card>
           <CardHeader>
+            <p className="text-sm font-medium text-blue-600">{subjectId?.title || 'Subject'}</p>
             <CardTitle className="text-2xl">{content.title}</CardTitle>
             <CardDescription>Study the material below, then start the quiz.</CardDescription>
           </CardHeader>
@@ -123,15 +124,22 @@ const ModulePage = () => {
                 ))}
              </ul>
           </CardContent>
-          <CardFooter>
-            <Button onClick={() => setView('quiz')} size="lg" disabled={!quizId}>Start Quiz</Button>
-          </CardFooter>
+          
+          {/* --- NEW: Only show the "Start Quiz" button if the module is NOT completed --- */}
+          {!isCompleted && (
+            <CardFooter>
+              <Button onClick={() => setView('quiz')} size="lg" disabled={!quizId}>Start Quiz</Button>
+            </CardFooter>
+          )}
         </Card>
       )}
 
       {view === 'quiz' && quizId && (
          <Card>
-            <CardHeader><CardTitle>Quiz: {content.title}</CardTitle></CardHeader>
+            <CardHeader>
+              <p className="text-sm font-medium text-blue-600">{subjectId?.title || 'Subject'}</p>
+              <CardTitle>Quiz: {content.title}</CardTitle>
+            </CardHeader>
             <CardContent className="space-y-8">
                 {error && <p className="text-center text-sm text-red-500">{error}</p>}
                 {quizId.questions.map((q, index) => (
@@ -175,8 +183,6 @@ const ModulePage = () => {
                 <h3 className="text-xl font-semibold mb-4 text-center">Review Your Answers</h3>
                 <div className="space-y-6">
                     {quizId.questions.map((q, index) => {
-                        // We use optional chaining (?.) to safely access nested properties.
-                        // This prevents the app from crashing if result.attempt is not yet available.
                         const studentAnswerRecord = result.attempt?.answers.find(a => a.questionId === q._id);
                         const studentChoiceIndex = studentAnswerRecord?.chosenIndex;
                         const isCorrect = studentAnswerRecord?.correct;

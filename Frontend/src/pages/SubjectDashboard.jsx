@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import * as api from '../api';
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2 } from 'lucide-react'; // For a nice checkmark icon
+import { CheckCircle2, Lock } from 'lucide-react'; // Import the Lock icon
 
 const SubjectDashboard = () => {
   const [subjects, setSubjects] = useState([]);
@@ -15,11 +15,12 @@ const SubjectDashboard = () => {
     try {
       const subjectsResponse = await api.getSubjects();
       const fetchedSubjects = subjectsResponse.subjects;
+      // Ensure modules are always sorted by order
+      fetchedSubjects.forEach(s => s.modules.sort((a, b) => a.order - b.order));
       setSubjects(fetchedSubjects);
 
-      // For each subject, fetch the student's progress
       const progressPromises = fetchedSubjects.map(s =>
-        api.getStudentProgress(s._id).catch(() => null) // Return null if not enrolled
+        api.getStudentProgress(s._id).catch(() => null)
       );
       const progressResults = await Promise.all(progressPromises);
       
@@ -46,7 +47,6 @@ const SubjectDashboard = () => {
   const handleEnroll = async (subjectId) => {
     try {
         await api.enrollInSubject(subjectId);
-        // Refresh data to show the new progress state
         fetchDashboardData();
     } catch (err) {
         alert("Failed to enroll. Please try again.");
@@ -73,20 +73,29 @@ const SubjectDashboard = () => {
                 <ul className="space-y-2">
                   {subject.modules.map((module) => {
                     const isCompleted = completedModules.includes(module._id);
+                    
+                    // Determine if the module is unlocked
+                    const previousModule = subject.modules.find(m => m.order === module.order - 1);
+                    const isUnlocked = module.order === 1 || (previousModule && completedModules.includes(previousModule._id));
+
+                    const isButtonDisabled = !isEnrolled || (!isUnlocked && !isCompleted);
+
                     return (
-                      <li key={module._id} className="flex justify-between items-center p-3 border rounded-lg bg-slate-50">
-                        <div className="flex items-center gap-2">
+                      <li key={module._id} className={`flex justify-between items-center p-3 border rounded-lg ${isButtonDisabled && !isCompleted ? 'bg-slate-100 opacity-60' : 'bg-slate-50'}`}>
+                        <div className="flex items-center gap-3">
                           {isCompleted ? (
-                            <CheckCircle2 className="h-5 w-5 text-green-500" />
+                            <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+                          ) : isUnlocked ? (
+                            <div className="h-5 w-5 rounded-full border-2 border-blue-400 bg-blue-50 flex-shrink-0" />
                           ) : (
-                            <div className="h-5 w-5 rounded-full border-2 border-slate-300" />
+                            <Lock className="h-5 w-5 text-slate-400 flex-shrink-0" />
                           )}
                           <span className={`font-medium ${isCompleted ? 'text-slate-400 line-through' : 'text-slate-700'}`}>
                             {module.order}. {module.title}
                           </span>
                         </div>
-                        <Link to={`/module/${module._id}`}>
-                          <Button disabled={!isEnrolled}>
+                        <Link to={`/module/${module._id}`} className={isButtonDisabled ? 'pointer-events-none' : ''}>
+                          <Button disabled={isButtonDisabled}>
                             {isCompleted ? 'Review' : 'Start Module'}
                           </Button>
                         </Link>
