@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import SubjectDashboard from "./pages/SubjectDashboard";
 import ModulePage from "./pages/ModulePage";
 import TeacherDashboard from "./pages/TeacherDashboard";
+import AttemptHistory from "./pages/AttemptHistory"; // Import the new page
 import { useAuth } from "./context/AuthProvider";
 
 export default function App() {
@@ -24,6 +25,13 @@ export default function App() {
             {user?.role === 'teacher' && (
               <Link to="/teacher/dashboard" className="text-blue-600 hover:underline font-medium text-sm">
                 Teacher View
+              </Link>
+            )}
+
+            {/* Add link to Attempt History for students */}
+            {user && user.role === 'student' && (
+              <Link to="/history" className="text-blue-600 hover:underline font-medium text-sm">
+                My History
               </Link>
             )}
 
@@ -53,7 +61,6 @@ export default function App() {
             path="/teacher/dashboard" 
             element={
               <ProtectedRoute>
-                {/* Only allow teachers to access this route */}
                 {user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/dashboard" />}
               </ProtectedRoute>
             } 
@@ -73,6 +80,15 @@ export default function App() {
                 <ModulePage />
               </ProtectedRoute>
             } 
+          />
+          {/* Add the new route for the history page */}
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <AttemptHistory />
+              </ProtectedRoute>
+            }
           />
 
           {/* Redirect root path based on login status */}
