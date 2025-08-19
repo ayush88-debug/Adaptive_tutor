@@ -29,7 +29,7 @@ const submitQuiz = asyncHandler(async (req, res) => {
   let correctCount = 0;
   const answerRecords = answers.map(a => {
     const q = quiz.questions.id(a.questionId);
-    const correct = q ? (q.correctIndex === a.chosenIndex) : false;
+    const correct = q ? (q.correctIndex === parseInt(a.chosenIndex)) : false;
     if (correct) correctCount++;
     return {
       questionId: a.questionId,
@@ -51,7 +51,6 @@ const submitQuiz = asyncHandler(async (req, res) => {
     passed
   });
 
-  // --- THIS IS THE FIX ---
   // If failed, generate and save remedial content correctly.
   if (!passed) {
     console.log("Quiz failed. Generating remedial lesson and new quiz...");
