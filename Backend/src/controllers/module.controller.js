@@ -17,7 +17,6 @@ const getModule = asyncHandler(async (req, res) => {
     throw new apiError(404, "Module not found");
   }
 
-  // A more robust check to see if content needs to be generated.
   const isContentMissing = !module.content || (Array.isArray(module.content) && module.content.length === 0);
 
   if (isContentMissing) {
@@ -27,11 +26,13 @@ const getModule = asyncHandler(async (req, res) => {
     const lesson = await llmService.generateLesson(module.seedTopic, { user: req.user });
     
     // 2. Generate quiz from the new lesson
-    // --- THIS LINE IS CORRECTED ---
-    const quizData = await llmService.generateQuizFromLesson(lesson, module._id); 
+    const quizData = await llmService.generateQuizFromLesson(lesson, module._id);
+    
+    // --- THIS IS THE FIX ---
+    // Ensure we are passing the array of questions from quizData
     const newQuiz = await Quiz.create({
         moduleId: module._id,
-        questions: quizData.questions
+        questions: quizData.questions // Correctly access the questions array
     });
 
     // 3. Assign the new content AND the new quizId to the module
