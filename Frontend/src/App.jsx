@@ -4,8 +4,9 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import VerifyEmail from "./pages/VerifyEmail";
 import ProtectedRoute from "./components/ProtectedRoute";
-import SubjectDashboard from "./pages/SubjectDashboard"; // We will create this next
-import ModulePage from "./pages/ModulePage"; // We will create this in the next step
+import SubjectDashboard from "./pages/SubjectDashboard";
+import ModulePage from "./pages/ModulePage";
+import TeacherDashboard from "./pages/TeacherDashboard";
 import { useAuth } from "./context/AuthProvider";
 
 export default function App() {
@@ -18,7 +19,14 @@ export default function App() {
           <Link to={user ? "/dashboard" : "/"} className="text-xl font-bold text-slate-800">
             Adaptive Tutor
           </Link>
-          <div>
+          <div className="flex items-center gap-4">
+            {/* Show Teacher Dashboard link if the user is a teacher */}
+            {user?.role === 'teacher' && (
+              <Link to="/teacher/dashboard" className="text-blue-600 hover:underline font-medium text-sm">
+                Teacher View
+              </Link>
+            )}
+
             {user ? (
               <button onClick={doLogout} className="bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 text-sm font-semibold">
                 Logout
@@ -40,11 +48,34 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
 
-          {/* Protected Student Routes */}
-          <Route path="/dashboard" element={<ProtectedRoute><SubjectDashboard /></ProtectedRoute>} />
-          <Route path="/module/:moduleId" element={<ProtectedRoute><ModulePage /></ProtectedRoute>} />
+          {/* Protected Routes */}
+          <Route 
+            path="/teacher/dashboard" 
+            element={
+              <ProtectedRoute>
+                {/* Only allow teachers to access this route */}
+                {user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/dashboard" />}
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <SubjectDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/module/:moduleId" 
+            element={
+              <ProtectedRoute>
+                <ModulePage />
+              </ProtectedRoute>
+            } 
+          />
 
-          {/* Redirect root path */}
+          {/* Redirect root path based on login status */}
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
         </Routes>
       </main>

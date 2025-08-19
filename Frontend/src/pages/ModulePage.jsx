@@ -4,13 +4,14 @@ import * as api from '../api';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 // Simple Radio Group components for the quiz
 const RadioGroup = ({ children, ...props }) => <div {...props}>{children}</div>;
-const RadioGroupItem = ({ id, name, value, onChange, label }) => (
+const RadioGroupItem = ({ id, name, value, onChange, label, disabled }) => (
     <div className="flex items-center space-x-2">
-        <input type="radio" id={id} name={name} value={value} onChange={onChange} />
-        <Label htmlFor={id} className="font-normal">{label}</Label>
+        <input type="radio" id={id} name={name} value={value} onChange={onChange} disabled={disabled} />
+        <Label htmlFor={id} className={`font-normal ${disabled ? 'text-slate-400' : 'cursor-pointer'}`}>{label}</Label>
     </div>
 );
 
@@ -75,9 +76,8 @@ const ModulePage = () => {
 
   const handleNextStep = () => {
     if (result.passed) {
-      navigate('/dashboard'); // Go back to dashboard after passing
+      navigate('/dashboard');
     } else {
-      // If failed, reset state and re-fetch the module to get new remedial content
       setView('lesson');
       setResult(null);
       setAnswers({});
@@ -89,7 +89,6 @@ const ModulePage = () => {
   if (error) return <div className="text-center p-8 text-red-500 font-semibold">{error}</div>;
   if (!moduleData) return <div className="text-center p-8">Module data not found.</div>;
 
-  // Destructure for easier access
   const { content, quizId } = moduleData;
 
   return (
@@ -104,7 +103,7 @@ const ModulePage = () => {
             {content.sections.map((section, index) => (
               <div key={index} className="mb-6">
                 <h3 className="font-semibold text-xl border-b pb-2 mb-2">{section.heading}</h3>
-                <p className="text-gray-700">{section.body}</p>
+                <p className="text-gray-700 whitespace-pre-wrap">{section.body}</p>
               </div>
             ))}
             {content.codeSamples && content.codeSamples.length > 0 && (
@@ -162,19 +161,54 @@ const ModulePage = () => {
       )}
 
       {view === 'result' && result && (
-          <Card className="text-center">
-            <CardHeader>
+          <Card>
+            <CardHeader className="text-center">
                 <CardTitle className="text-3xl">Quiz Result</CardTitle>
+                <CardDescription className="text-lg">Your Score: <span className="font-bold text-2xl">{result.score} / 100</span></CardDescription>
+                 {result.passed ? (
+                    <p className="text-green-600 mt-2">Congratulations! You have passed this module.</p>
+                ) : (
+                    <p className="text-orange-600 mt-2">You didn't quite reach the 90% mastery threshold. A new, simpler lesson is ready for you to review.</p>
+                )}
             </CardHeader>
             <CardContent>
-                <p className="text-5xl font-bold mb-4">Your Score: {result.score} / 100</p>
-                {result.passed ? (
-                    <p className="text-green-600 mt-2 text-lg">Congratulations! You have passed this module.</p>
-                ) : (
-                    <p className="text-orange-600 mt-2 text-lg">You didn't quite reach the 90% mastery threshold. A new, simpler lesson is ready for you to review.</p>
-                )}
+                <h3 className="text-xl font-semibold mb-4 text-center">Review Your Answers</h3>
+                <div className="space-y-6">
+                    {quizId.questions.map((q, index) => {
+                        // We use optional chaining (?.) to safely access nested properties.
+                        // This prevents the app from crashing if result.attempt is not yet available.
+                        const studentAnswerRecord = result.attempt?.answers.find(a => a.questionId === q._id);
+                        const studentChoiceIndex = studentAnswerRecord?.chosenIndex;
+                        const isCorrect = studentAnswerRecord?.correct;
+
+                        return (
+                            <div key={q._id} className={`p-4 rounded-lg border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                                <p className="font-semibold mb-2">{index + 1}. {q.text}</p>
+                                <div className="space-y-2">
+                                    {q.options.map((opt, i) => {
+                                        const isStudentChoice = i === studentChoiceIndex;
+                                        const isCorrectChoice = i === q.correctIndex;
+                                        return (
+                                            <div key={i} className="flex items-center gap-2">
+                                                {isStudentChoice && !isCorrect && <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />}
+                                                {isCorrectChoice && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
+                                                <Label className={`${isCorrectChoice ? 'font-bold text-green-700' : ''} ${isStudentChoice && !isCorrect ? 'line-through text-red-700' : ''}`}>
+                                                    {opt}
+                                                </Label>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                                <div className="mt-2 p-2 bg-slate-100 rounded">
+                                    <p className="text-sm font-semibold">Explanation:</p>
+                                    <p className="text-sm text-slate-700">{q.explanation}</p>
+                                </div>
+                            </div>
+                        )
+                    })}
+                </div>
             </CardContent>
-            <CardFooter className="justify-center">
+            <CardFooter className="justify-center mt-4">
                 <Button onClick={handleNextStep} size="lg">
                     {result.passed ? 'Back to Dashboard' : 'Review New Lesson'}
                 </Button>

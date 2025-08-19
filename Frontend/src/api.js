@@ -69,3 +69,7 @@ export const getModule = (moduleId) => client.get(`/api/v1/modules/${moduleId}`)
 
 export const submitQuiz = (moduleId, answers) => 
   client.post(`/api/v1/quizzes/${moduleId}/submit`, { answers });
+
+// ... (Teacher)
+
+export const getStudentsProgress = () => client.get("/api/v1/admin/students-progress");
