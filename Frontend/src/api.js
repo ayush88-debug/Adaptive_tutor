@@ -55,3 +55,17 @@ export const verifyEmail = (verificationToken, verificationCode) =>
 export const logout = () => client.post("/api/v1/auth/logout");
 
 export const getUser = () => client.get("/api/v1/user/get-user");
+
+
+export const getSubjects = () => client.get("/api/v1/subjects");
+
+// This enrolls the student and creates their progress tracker
+export const enrollInSubject = (subjectId) => client.post(`/api/v1/progress/enroll/${subjectId}`);
+
+// This gets the student's specific progress (e.g., completed modules)
+export const getStudentProgress = (subjectId) => client.get(`/api/v1/progress/subject/${subjectId}`);
+
+export const getModule = (moduleId) => client.get(`/api/v1/modules/${moduleId}`);
+
+export const submitQuiz = (moduleId, answers) => 
+  client.post(`/api/v1/quizzes/${moduleId}/submit`, { answers });

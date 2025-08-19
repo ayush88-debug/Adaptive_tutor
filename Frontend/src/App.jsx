@@ -1,25 +1,53 @@
 import React from "react";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, Navigate } from "react-router-dom";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import VerifyEmail from "./pages/VerifyEmail";
-import Home from "./pages/Home";
 import ProtectedRoute from "./components/ProtectedRoute";
+import SubjectDashboard from "./pages/SubjectDashboard"; // We will create this next
+import ModulePage from "./pages/ModulePage"; // We will create this in the next step
+import { useAuth } from "./context/AuthProvider";
 
 export default function App() {
+  const { user, doLogout } = useAuth();
+
   return (
-    <div>
-      <nav style={{ padding: "1rem", borderBottom: "1px solid #ddd" }}>
-        <Link to="/">Home</Link>{" | "}
-        <Link to="/signup">Signup</Link>{" | "}
-        <Link to="/login">Login</Link>
+    <div className="min-h-screen bg-slate-50">
+      <nav className="bg-white shadow-sm border-b sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <Link to={user ? "/dashboard" : "/"} className="text-xl font-bold text-slate-800">
+            Adaptive Tutor
+          </Link>
+          <div>
+            {user ? (
+              <button onClick={doLogout} className="bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 text-sm font-semibold">
+                Logout
+              </button>
+            ) : (
+              <>
+                <Link to="/login" className="text-slate-600 hover:text-blue-600 mr-4 font-medium">Login</Link>
+                <Link to="/signup" className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 text-sm font-semibold">Sign Up</Link>
+              </>
+            )}
+          </div>
+        </div>
       </nav>
-      <Routes>
-        <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
-      </Routes>
+      
+      <main className="container mx-auto p-4 mt-4">
+        <Routes>
+          {/* Auth Routes */}
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+
+          {/* Protected Student Routes */}
+          <Route path="/dashboard" element={<ProtectedRoute><SubjectDashboard /></ProtectedRoute>} />
+          <Route path="/module/:moduleId" element={<ProtectedRoute><ModulePage /></ProtectedRoute>} />
+
+          {/* Redirect root path */}
+          <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+        </Routes>
+      </main>
     </div>
   );
 }
