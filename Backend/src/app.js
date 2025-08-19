@@ -43,4 +43,11 @@ import teacherRoutes from './routes/teacher.route.js';
 app.use('/api/v1/attempts', attemptRoutes);
 app.use('/api/v1/admin', teacherRoutes);
 
+
+import reportRoutes from './routes/report.route.js';
+import progressRoutes from './routes/progress.route.js'; 
+
+app.use('/api/v1/reports', reportRoutes);
+app.use('/api/v1/progress', progressRoutes);
+
 export default app;

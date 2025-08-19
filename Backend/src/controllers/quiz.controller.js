@@ -1,72 +1,75 @@
-// Backend/src/controllers/quiz.controller.js
 import Quiz from "../models/quiz.model.js";
 import Module from "../models/module.model.js";
 import Attempt from "../models/attempt.model.js";
+import StudentProgress from '../models/studentProgress.model.js';
+import Subject from '../models/subject.model.js';
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { apiError } from "../utils/apiError.js";
 import * as llmService from "../services/llm.service.js";
 
-/**
- * POST /api/v1/quizzes/:moduleId/submit
- * Body: { answers: [{ questionId, chosenIndex }, ...] }
- */
 const submitQuiz = asyncHandler(async (req, res) => {
   const { moduleId } = req.params;
   const userId = req.user._id;
   const { answers } = req.body;
 
-  // Basic validation
-  if (!Array.isArray(answers)) {
-    throw new apiError(400, "answers must be an array");
-  }
-
   const module = await Module.findById(moduleId);
   if (!module) throw new apiError(404, "Module not found");
 
-  const quiz = await Quiz.findById(module.quizId);
-  if (!quiz) throw new apiError(404, "Quiz not found for this module");
+  const progress = await StudentProgress.findOne({ userId, subjectId: module.subjectId });
+  if (!progress) throw new apiError(400, "Student is not enrolled in this subject.");
 
-  // grade
+  // Determine if this quiz is a standard one or a remedial one
+  const override = progress.moduleOverrides.find(o => o.moduleId.toString() === moduleId);
+  const quizId = override ? override.quizId : module.quizId;
+
+  const quiz = await Quiz.findById(quizId);
+  if (!quiz) throw new apiError(404, "Quiz not found");
+
+  // Grade quiz
   let correctCount = 0;
   const answerRecords = answers.map(a => {
-    const q = quiz.questions.id(a.questionId); // mongoose subdocument lookup
-    const correct = q ? (q.correctIndex === a.chosenIndex) : false;
+    const q = quiz.questions.id(a.questionId);
+    const correct = q ? (q.correctIndex === parseInt(a.chosenIndex)) : false;
     if (correct) correctCount++;
-    return {
-      questionId: a.questionId,
-      chosenIndex: a.chosenIndex,
-      correct
-    };
+    return { questionId: a.questionId, chosenIndex: a.chosenIndex, correct };
   });
 
-  const totalQuestions = quiz.questions.length || answerRecords.length || 10;
-  const score = Math.round((correctCount / totalQuestions) * 100);
+  const score = Math.round((correctCount / quiz.questions.length) * 100);
   const passed = score >= 90;
 
-  const attempt = await Attempt.create({
-    userId,
-    moduleId,
-    quizId: quiz._id,
-    answers: answerRecords,
-    score,
-    passed
-  });
+  await Attempt.create({ userId, moduleId, quizId, answers: answerRecords, score, passed });
 
-  // If failed -> generate remedial lesson + new quiz and attach to module
-  let remedial = null;
-  if (!passed) {
-    remedial = await llmService.generateRemedialLesson(quiz, attempt);
-    module.content = remedial;
-    await module.save();
+  // Update StudentProgress
+  if (passed) {
+    progress.completedModules.addToSet(moduleId); // Add to completed list if not already there
+    // Remove any remedial override for this module since it's now passed
+    progress.moduleOverrides = progress.moduleOverrides.filter(o => o.moduleId.toString() !== moduleId);
+  } else {
+    // FAILED: Create and save a PERSONALIZED remedial lesson
+    console.log("Quiz failed. Generating personalized remedial content...");
+    const remedialLesson = await llmService.generateRemedialLesson(quiz, { score, answers: answerRecords }, module.title);
+    const newQuizData = await llmService.generateQuizFromLesson(remedialLesson);
+    const newQuiz = await Quiz.create({ moduleId, questions: newQuizData.questions });
 
-    const newQuizPayload = await llmService.generateQuizFromLesson(remedial, module._id);
-    const newQuiz = await Quiz.create({ moduleId: module._id, questions: newQuizPayload.questions });
-    module.quizId = newQuiz._id;
-    await module.save();
+    const newOverride = {
+        moduleId,
+        content: remedialLesson,
+        quizId: newQuiz._id,
+    };
+    
+    // Find if an override already exists and update it, otherwise push a new one
+    const overrideIndex = progress.moduleOverrides.findIndex(o => o.moduleId.toString() === moduleId);
+    if (overrideIndex > -1) {
+        progress.moduleOverrides[overrideIndex] = newOverride;
+    } else {
+        progress.moduleOverrides.push(newOverride);
+    }
   }
-
-  return res.status(201).json(new apiResponse(201, { attempt, score, passed, remedialAvailable: !passed }, "Attempt recorded"));
+  
+  await progress.save();
+  
+  return res.status(201).json(new apiResponse(201, { score, passed, remedialAvailable: !passed }, "Attempt recorded and progress updated"));
 });
 
 export { submitQuiz };
