@@ -7,7 +7,8 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import SubjectDashboard from "./pages/SubjectDashboard";
 import ModulePage from "./pages/ModulePage";
 import TeacherDashboard from "./pages/TeacherDashboard";
-import AttemptHistory from "./pages/AttemptHistory"; // Import the new page
+import AttemptHistory from "./pages/AttemptHistory";
+import StudentDetailPage from "./pages/StudentDetailPage"; // Import the new page
 import { useAuth } from "./context/AuthProvider";
 
 export default function App() {
@@ -21,20 +22,16 @@ export default function App() {
             Adaptive Tutor
           </Link>
           <div className="flex items-center gap-4">
-            {/* Show Teacher Dashboard link if the user is a teacher */}
             {user?.role === 'teacher' && (
               <Link to="/teacher/dashboard" className="text-blue-600 hover:underline font-medium text-sm">
                 Teacher View
               </Link>
             )}
-
-            {/* Add link to Attempt History for students */}
             {user && user.role === 'student' && (
               <Link to="/history" className="text-blue-600 hover:underline font-medium text-sm">
                 My History
               </Link>
             )}
-
             {user ? (
               <button onClick={doLogout} className="bg-slate-200 text-slate-800 px-4 py-2 rounded-md hover:bg-slate-300 text-sm font-semibold">
                 Logout
@@ -51,17 +48,23 @@ export default function App() {
       
       <main className="container mx-auto p-4 mt-4">
         <Routes>
-          {/* Auth Routes */}
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
 
-          {/* Protected Routes */}
           <Route 
             path="/teacher/dashboard" 
             element={
               <ProtectedRoute>
                 {user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/dashboard" />}
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/teacher/student/:studentId" 
+            element={
+              <ProtectedRoute>
+                {user?.role === 'teacher' ? <StudentDetailPage /> : <Navigate to="/dashboard" />}
               </ProtectedRoute>
             } 
           />
@@ -81,7 +84,6 @@ export default function App() {
               </ProtectedRoute>
             } 
           />
-          {/* Add the new route for the history page */}
           <Route
             path="/history"
             element={
@@ -91,7 +93,6 @@ export default function App() {
             }
           />
 
-          {/* Redirect root path based on login status */}
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
         </Routes>
       </main>

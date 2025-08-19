@@ -1,10 +1,9 @@
 import User from "../models/users.model.js";
 import Attempt from "../models/attempt.model.js";
 import StudentProgress from "../models/studentProgress.model.js";
-import Subject from "../models/subject.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiResponse } from "../utils/apiResponse.js";
-import mongoose from "mongoose";
+import { apiError } from "../utils/apiError.js";
 
 const getStudentsProgress = asyncHandler(async (req, res) => {
   const students = await User.find({ role: "student" }).select("_id username email").lean();
@@ -47,5 +46,52 @@ const getStudentsProgress = asyncHandler(async (req, res) => {
 
   return res.status(200).json(new apiResponse(200, { students: studentSummaries }, "Student progress retrieved"));
 });
+
+export const getStudentDetails = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+
+  // 1. Fetch student's basic info
+  const student = await User.findById(studentId).select("username email").lean();
+  if (!student) {
+    throw new apiError(404, "Student not found");
+  }
+
+  // 2. Fetch all subjects the student is enrolled in, with module details
+  const enrollments = await StudentProgress.find({ userId: studentId })
+    .populate({
+      path: 'subjectId',
+      select: 'title modules',
+      populate: {
+        path: 'modules',
+        select: 'title order',
+        options: { sort: { order: 1 } } // Ensure modules are sorted
+      }
+    })
+    .select('subjectId completedModules')
+    .lean();
+
+  // 3. Fetch all quiz attempts for the student
+  const attempts = await Attempt.find({ userId: studentId })
+    .populate({
+        path: 'moduleId',
+        select: 'title subjectId',
+        populate: {
+            path: 'subjectId',
+            select: 'title'
+        }
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+  
+  // 4. Combine the data into a single payload
+  const responseData = {
+    student,
+    enrollments,
+    attempts
+  };
+
+  return res.status(200).json(new apiResponse(200, responseData, "Student details retrieved"));
+});
+
 
 export { getStudentsProgress };

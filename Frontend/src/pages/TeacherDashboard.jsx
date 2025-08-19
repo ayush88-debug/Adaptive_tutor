@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import * as api from '../api';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 
 const TeacherDashboard = () => {
   const [studentData, setStudentData] = useState([]);
@@ -42,9 +45,16 @@ const TeacherDashboard = () => {
           {studentData.map(({ student, progress }) => (
             <AccordionItem value={student._id} key={student._id}>
               <AccordionTrigger>
-                <div className="flex flex-col text-left">
-                    <span className="font-semibold text-base">{student.username}</span>
-                    <span className="font-normal text-sm text-slate-500">{student.email}</span>
+                <div className="flex justify-between items-center w-full pr-4">
+                    <div className="flex flex-col text-left">
+                        <span className="font-semibold text-base">{student.username}</span>
+                        <span className="font-normal text-sm text-slate-500">{student.email}</span>
+                    </div>
+                    <Link to={`/teacher/student/${student._id}`} onClick={(e) => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm">
+                            View Details <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                    </Link>
                 </div>
               </AccordionTrigger>
               <AccordionContent>
