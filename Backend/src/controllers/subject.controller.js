@@ -37,45 +37,46 @@ const getSubjectById = asyncHandler(async (req, res) => {
  * POST /api/v1/subjects/seed
  * Seed sample subjects & modules for C++ and OOP. Run once.
  */
+// ... other functions (getSubjects, getSubjectById) remain the same ...
+
+/**
+ * POST /api/v1/subjects/seed
+ * Seed sample subjects & modules for C++ and OOP. Run once.
+ */
 const seedSubjects = asyncHandler(async (req, res) => {
-  // Delete existing seeded data? For safety we just create if not exists.
+  // Check if seed data already exists to prevent duplicates
   const existing = await Subject.findOne({ key: "cpp" });
   if (existing) {
-    return res.status(200).json(new apiResponse(200, { subject: existing }, "Seed already exists"));
+    return res.status(200).json(new apiResponse(200, { subject: existing }, "Seed data already exists"));
   }
 
-  // Define roadmap (simple MVP)
-  const cppModules = [
-    { order: 1, title: "Intro to C++", seedTopic: "History & setup, structure of a C++ program" },
-    { order: 2, title: "Variables & Types", seedTopic: "Primitive types, variables, constants" },
-    { order: 3, title: "Control Flow", seedTopic: "if/else, loops, switch" },
-    { order: 4, title: "Functions", seedTopic: "Function declaration, parameters, return" },
-    { order: 5, title: "Pointers", seedTopic: "Pointers, references, basics of memory" },
-    { order: 6, title: "OOP Basics", seedTopic: "Classes, objects, encapsulation" }
-  ];
-
-  // Create Modules and Subject
-  const createdModules = [];
-  for (const m of cppModules) {
-    const modDoc = await Module.create({
-      subjectId: null, // temporary; we'll update after subject created
-      order: m.order,
-      title: m.title,
-      seedTopic: m.seedTopic
-    });
-    createdModules.push(modDoc);
-  }
-
+  // 1. Create the Subject first
   const cppSubject = await Subject.create({
     key: "cpp",
     title: "C++ Programming",
-    modules: createdModules.map(m => m._id)
+    modules: [] // Start with an empty array
   });
 
-  // update subjectId on each module
-  await Module.updateMany({ _id: { $in: createdModules.map(m => m._id) } }, { subjectId: cppSubject._id });
+  // 2. Define the modules with the new subjectId
+  const cppModuleData = [
+    { order: 1, title: "Intro to C++", seedTopic: "History & setup, structure of a C++ program", subjectId: cppSubject._id },
+    { order: 2, title: "Variables & Types", seedTopic: "Primitive types, variables, constants", subjectId: cppSubject._id },
+    { order: 3, title: "Control Flow", seedTopic: "if/else, loops, switch", subjectId: cppSubject._id },
+    { order: 4, title: "Functions", seedTopic: "Function declaration, parameters, return", subjectId: cppSubject._id },
+    { order: 5, title: "Pointers", seedTopic: "Pointers, references, basics of memory", subjectId: cppSubject._id },
+    { order: 6, title: "OOP Basics", seedTopic: "Classes, objects, encapsulation", subjectId: cppSubject._id }
+  ];
 
-  return res.status(201).json(new apiResponse(201, { subject: cppSubject }, "Seed created"));
+  // 3. Create all modules at once
+  const createdModules = await Module.insertMany(cppModuleData);
+
+  // 4. Update the subject with the newly created module IDs
+  cppSubject.modules = createdModules.map(m => m._id);
+  await cppSubject.save();
+
+  const finalSubject = await Subject.findById(cppSubject._id).populate('modules');
+
+  return res.status(201).json(new apiResponse(201, { subject: finalSubject }, "Seed created successfully"));
 });
 
 export { getSubjects, getSubjectById, seedSubjects };
