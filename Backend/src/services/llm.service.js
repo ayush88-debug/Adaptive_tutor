@@ -1,34 +1,24 @@
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import { HarmBlockThreshold, HarmCategory } from "@google/generative-ai";
+import { ChatGroq } from "@langchain/groq";
 import { z } from "zod";
 import { apiError } from "../utils/apiError.js";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-1.5-pro-latest";
+const MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
 
-const llm = new ChatGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_API_KEY,
+const llm = new ChatGroq({
+  apiKey: process.env.GROQ_API_KEY,
   model: MODEL,
   temperature: 0.3,
-  maxRetries: 2,
-  safetySettings: [
-    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-  ],
 });
-
-// --- Stricter Zod Schemas for Guaranteed Output ---
 
 const lessonSchema = z.object({
   title: z.string().describe("The mandatory title of the lesson."),
   sections: z.array(z.object({
     heading: z.string().describe("The mandatory heading for this section."),
     body: z.string().describe("The mandatory content for this section."),
-  })).min(1).describe("The mandatory array of lesson sections. It cannot be empty."),
+  })).min(1).describe("The mandatory array of lesson sections."),
   codeSamples: z.array(z.string()).describe("An array of valid, JSON-escaped C++ code samples."),
-  keyTakeaways: z.array(z.string()).min(1).describe("A mandatory list of key takeaways. It cannot be empty."),
+  keyTakeaways: z.array(z.string()).min(1).describe("A mandatory list of key takeaways."),
 });
 
 const quizSchema = z.object({
@@ -40,27 +30,15 @@ const quizSchema = z.object({
     })).length(10).describe("A mandatory array of exactly 10 quiz questions.")
 });
 
-const reportSchema = z.object({
-    title: z.string().describe("The mandatory title of the report."),
-    summary: z.string().describe("A mandatory overall summary of the student's performance."),
-    strengths: z.array(z.string()).describe("A mandatory list of identified strengths."),
-    weaknesses: z.array(z.string()).describe("A mandatory list of identified areas for improvement."),
-    recommendations: z.array(z.string()).describe("A mandatory list of actionable recommendations for the student.")
-});
-
-
 const lessonChain = llm.withStructuredOutput(lessonSchema);
 const quizChain = llm.withStructuredOutput(quizSchema);
 const remedialLessonChain = llm.withStructuredOutput(lessonSchema);
-const reportChain = llm.withStructuredOutput(reportSchema);
-
-// --- Refactored Service Functions with Forceful, Simplified Prompts ---
 
 export async function generateLesson(seedTopic, { user } = {}) {
   try {
     const prompt = ChatPromptTemplate.fromMessages([
-      ["system", "You are a JSON generation engine. Your sole purpose is to return a single, raw, valid JSON object that strictly follows the provided schema. All fields are mandatory. Do not add any commentary or markdown formatting."],
-      ["human", `Generate a complete lesson for a university-level computer science course on the topic: "{topic}".`],
+      ["system", "You are an expert Computer Science tutor. Your task is to provide educational content in a structured JSON format."],
+      ["human", `Create a lesson about the following topic: "{topic}".`],
     ]);
     const chain = prompt.pipe(lessonChain);
     const result = await chain.invoke({ topic: seedTopic });
@@ -75,11 +53,10 @@ export async function generateLesson(seedTopic, { user } = {}) {
 export async function generateQuizFromLesson(lesson, moduleId) {
     try {
         const prompt = ChatPromptTemplate.fromMessages([
-            ["system", "You are a JSON quiz generator. Your only job is to create a 10-question multiple-choice quiz as a single, raw, valid JSON object based on the provided lesson title. All fields in the schema are mandatory."],
-            ["human", "Lesson Title: {title}\n\nPlease generate a 10-question quiz based on this topic. The questions should be appropriate for a university-level computer science course."],
+            ["system", "You are an expert quiz designer. Your task is to create a 10-question multiple-choice quiz in a structured JSON format based on the provided lesson title."],
+            ["human", "Create a quiz for a lesson titled: \"{title}\"."],
         ]);
         const chain = prompt.pipe(quizChain);
-        // We only pass the title to simplify the context and ensure reliability.
         const result = await chain.invoke({
             title: lesson.title
         });
@@ -90,11 +67,11 @@ export async function generateQuizFromLesson(lesson, moduleId) {
     }
 }
 
-export async function generateRemedialLesson(quiz, attempt) {
+export async function generateRemedialLesson(quiz, attempt, moduleTitle) {
     try {
         const prompt = ChatPromptTemplate.fromMessages([
-            ["system", "You are a JSON generation engine for educational content. A student struggled on a quiz. Your only job is to generate a simpler, remedial lesson as a single, raw, valid JSON object. All fields are mandatory."],
-            ["human", `A student scored {score} on a quiz about "{topic}". They specifically struggled with these questions: {wrongQuestions}. Please generate a new, simplified lesson that addresses these weaknesses.`],
+            ["system", "You are a patient tutor. A student struggled with a quiz. Your task is to generate a simpler, remedial lesson in a structured JSON format, focusing on their mistakes."],
+            ["human", `A student scored {score} on a quiz about "{topic}". They struggled with questions related to: {wrongQuestions}. Create a simplified lesson to help them understand these specific points.`],
         ]);
         const chain = prompt.pipe(remedialLessonChain);
 
@@ -102,13 +79,10 @@ export async function generateRemedialLesson(quiz, attempt) {
             .filter(a => !a.correct)
             .map(a => quiz.questions.find(q => q._id.toString() === a.questionId.toString())?.text)
             .filter(Boolean);
-        
-        // Find the original module to get its title
-        const originalModule = await Module.findById(attempt.moduleId);
 
         const result = await chain.invoke({
             score: attempt.score,
-            topic: originalModule.title, // Use the module title for context
+            topic: moduleTitle,
             wrongQuestions: wrongQuestions.join(', ') || "General review needed"
         });
         
@@ -118,25 +92,5 @@ export async function generateRemedialLesson(quiz, attempt) {
     } catch (err) {
         console.error("Error in generateRemedialLesson:", err);
         throw new apiError(500, `LLM generateRemedialLesson failed: ${err.message}`);
-    }
-}
-
-export async function generateReport(user, attempts = []) {
-    try {
-        const prompt = ChatPromptTemplate.fromMessages([
-            ["system", "You are a JSON report generator. Your only job is to generate a concise performance report as a single, raw, valid JSON object based on a student's quiz attempts. All fields are mandatory."],
-            ["human", "Student: {studentName}\n\nAttempts Data: {attemptsData}\n\nPlease analyze this data and generate the report."],
-        ]);
-        const chain = prompt.pipe(reportChain);
-        const result = await chain.invoke({
-            studentName: user.username,
-            attemptsData: JSON.stringify(attempts.map(a => ({ module: a.moduleId.title, score: a.score, passed: a.passed })))
-        });
-
-        result._meta = { model: MODEL, generatedAt: new Date().toISOString() };
-        return result;
-    } catch (err) {
-        console.error("Error in generateReport:", err);
-        throw new apiError(500, `LLM generateReport failed: ${err.message}`);
     }
 }

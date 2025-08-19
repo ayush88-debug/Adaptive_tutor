@@ -6,10 +6,9 @@ import { apiResponse } from "../utils/apiResponse.js";
 import { apiError } from "../utils/apiError.js";
 import * as llmService from "../services/llm.service.js";
 
-/**
- * POST /api/v1/quizzes/:moduleId/submit
- * Body: { answers: [{ questionId, chosenIndex }, ...] }
- */
+
+// ... imports ...
+
 const submitQuiz = asyncHandler(async (req, res) => {
   const { moduleId } = req.params;
   const userId = req.user._id;
@@ -25,7 +24,6 @@ const submitQuiz = asyncHandler(async (req, res) => {
   const quiz = await Quiz.findById(module.quizId);
   if (!quiz) throw new apiError(404, "Quiz not found for this module");
 
-  // Grade the quiz
   let correctCount = 0;
   const answerRecords = answers.map(a => {
     const q = quiz.questions.id(a.questionId);
@@ -51,25 +49,21 @@ const submitQuiz = asyncHandler(async (req, res) => {
     passed
   });
 
-  // If failed, generate and save remedial content correctly.
   if (!passed) {
     console.log("Quiz failed. Generating remedial lesson and new quiz...");
     
-    // 1. Generate the remedial lesson content.
-    const remedialLesson = await llmService.generateRemedialLesson(quiz, attempt);
+    // Pass the module.title to the service function
+    const remedialLesson = await llmService.generateRemedialLesson(quiz, attempt, module.title);
     
-    // 2. Generate the new quiz based on the remedial lesson.
     const newQuizData = await llmService.generateQuizFromLesson(remedialLesson, module._id);
     const newQuiz = await Quiz.create({
         moduleId: module._id,
         questions: newQuizData.questions,
     });
 
-    // 3. Update the module with the new content AND the new quiz ID.
     module.content = remedialLesson;
     module.quizId = newQuiz._id;
 
-    // 4. Save the module ONCE with all the new data.
     await module.save();
     console.log("Module updated with remedial content.");
   }
