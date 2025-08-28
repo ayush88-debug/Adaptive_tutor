@@ -128,7 +128,8 @@ const ModulePage = () => {
           {/* --- NEW: Only show the "Start Quiz" button if the module is NOT completed --- */}
           {!isCompleted && (
             <CardFooter>
-              <Button onClick={() => setView('quiz')} size="lg" disabled={!quizId}>Start Quiz</Button>
+              {/* <Button onClick={() => setView('quiz')} size="lg" disabled={!quizId}>Start Quiz</Button> */}
+              <Button size="lg" disabled={!quizId}>Start Quiz</Button>
             </CardFooter>
           )}
         </Card>
