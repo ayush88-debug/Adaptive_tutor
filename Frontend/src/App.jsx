@@ -24,12 +24,12 @@ export default function App() {
           <div className="flex items-center gap-4">
             {user?.role === 'teacher' && (
               <Link to="/teacher/dashboard" className="text-blue-600 hover:underline font-medium text-sm">
-                Teacher View
+                {/* Teacher View */}
               </Link>
             )}
             {user && user.role === 'student' && (
               <Link to="/history" className="text-blue-600 hover:underline font-medium text-sm">
-                My History
+                {/* My History */}
               </Link>
             )}
             {user ? (
