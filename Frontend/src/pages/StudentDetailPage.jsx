@@ -5,7 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Bot, TrendingUp, Target, Lightbulb } from 'lucide-react'; // Import new icons
+import { CheckCircle2, Bot, TrendingUp, Target, Lightbulb, Percent, HelpCircle } from 'lucide-react';
 
 const StudentDetailPage = () => {
   const { studentId } = useParams();
@@ -17,6 +17,7 @@ const StudentDetailPage = () => {
 
   const fetchDetailsAndReports = async () => {
     try {
+      setLoading(true);
       const [detailsResponse, reportsResponse] = await Promise.all([
         api.getStudentDetails(studentId),
         api.getReports(studentId)
@@ -48,12 +49,16 @@ const StudentDetailPage = () => {
     }
   };
 
-
   if (loading) return <div className="text-center p-8 text-slate-500">Loading Student Details...</div>;
   if (error) return <div className="text-center p-8 text-red-500 font-semibold">{error}</div>;
   if (!details) return null;
 
   const { student, enrollments, attempts } = details;
+
+  // Calculate KPIs for this student
+  const totalAttempts = attempts.length;
+  const averageScore = totalAttempts > 0 ? Math.round(attempts.reduce((sum, a) => sum + a.score, 0) / totalAttempts) : 0;
+  const passRate = totalAttempts > 0 ? Math.round((attempts.filter(a => a.passed).length / totalAttempts) * 100) : 0;
 
   return (
     <div className="space-y-8">
@@ -62,9 +67,17 @@ const StudentDetailPage = () => {
         <p className="text-slate-500">{student.email}</p>
       </div>
 
+      {/* Student KPIs */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card><CardHeader><CardTitle>Total Attempts</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold flex items-center"><HelpCircle className="mr-2 h-6 w-6 text-blue-500"/>{totalAttempts}</p></CardContent></Card>
+        <Card><CardHeader><CardTitle>Average Score</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold flex items-center"><Target className="mr-2 h-6 w-6 text-orange-500"/>{averageScore}%</p></CardContent></Card>
+        <Card><CardHeader><CardTitle>Overall Pass Rate</CardTitle></CardHeader><CardContent><p className="text-2xl font-bold flex items-center"><Percent className="mr-2 h-6 w-6 text-green-500"/>{passRate}%</p></CardContent></Card>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Subject Progress</CardTitle>
+          <CardTitle>Subject Progress & History</CardTitle>
+          <CardDescription>Detailed progress and quiz attempts for each enrolled subject.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {enrollments.map(({ subjectId, completedModules }) => (
@@ -76,19 +89,15 @@ const StudentDetailPage = () => {
                   {isGenerating ? 'Generating...' : 'Generate AI Report'}
                 </Button>
               </div>
-              <ul className="space-y-2">
-                {subjectId.modules.map(module => {
-                  const isCompleted = completedModules.includes(module._id);
-                  return (
-                    <li key={module._id} className="flex items-center gap-3 p-2 border rounded-md bg-slate-50">
-                      {isCompleted 
-                        ? <CheckCircle2 className="h-5 w-5 text-green-500" /> 
-                        : <div className="h-5 w-5 rounded-full border-2 border-slate-300" />
-                      }
-                      <span className={isCompleted ? "text-slate-400" : ""}>{module.order}. {module.title}</span>
-                    </li>
-                  )
-                })}
+              <ul className="space-y-2 mb-4">
+                {subjectId.modules.map(module => (
+                  <li key={module._id} className="flex items-center gap-3 p-2 border rounded-md bg-slate-50">
+                    {completedModules.includes(module._id) 
+                      ? <CheckCircle2 className="h-5 w-5 text-green-500" /> 
+                      : <div className="h-5 w-5 rounded-full border-2 border-slate-300" />}
+                    <span>{module.order}. {module.title}</span>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}
@@ -98,7 +107,6 @@ const StudentDetailPage = () => {
         </CardContent>
       </Card>
       
-      {/* --- UPDATED AI Generated Reports Section --- */}
       <Card>
         <CardHeader>
             <CardTitle>AI Generated Reports</CardTitle>
@@ -117,29 +125,20 @@ const StudentDetailPage = () => {
                             <p className="text-sm text-slate-600 leading-relaxed">{report.generatedContent.studentPerformanceSummary}</p>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            {/* Strengths Column */}
                             <div>
-                                <h4 className="flex items-center font-semibold mb-2 text-green-700">
-                                    <TrendingUp className="h-5 w-5 mr-2" /> Strengths
-                                </h4>
+                                <h4 className="flex items-center font-semibold mb-2 text-green-700"><TrendingUp className="h-5 w-5 mr-2" /> Strengths</h4>
                                 <ul className="list-disc pl-5 space-y-1 text-sm text-slate-600">
                                     {report.generatedContent.strengths.map((s, i) => <li key={i}>{s}</li>)}
                                 </ul>
                             </div>
-                             {/* Areas for Improvement Column */}
                              <div>
-                                <h4 className="flex items-center font-semibold mb-2 text-amber-700">
-                                    <Target className="h-5 w-5 mr-2" /> Areas for Improvement
-                                </h4>
+                                <h4 className="flex items-center font-semibold mb-2 text-amber-700"><Target className="h-5 w-5 mr-2" /> Areas for Improvement</h4>
                                 <ul className="list-disc pl-5 space-y-1 text-sm text-slate-600">
                                     {report.generatedContent.areasForImprovement.map((a, i) => <li key={i}>{a}</li>)}
                                 </ul>
                             </div>
-                            {/* Suggestions Column */}
                             <div>
-                                <h4 className="flex items-center font-semibold mb-2 text-blue-700">
-                                    <Lightbulb className="h-5 w-5 mr-2" /> Actionable Suggestions
-                                </h4>
+                                <h4 className="flex items-center font-semibold mb-2 text-blue-700"><Lightbulb className="h-5 w-5 mr-2" /> Actionable Suggestions</h4>
                                 <ul className="list-disc pl-5 space-y-1 text-sm text-slate-600">
                                     {report.generatedContent.actionableSuggestions.map((s, i) => <li key={i}>{s}</li>)}
                                 </ul>

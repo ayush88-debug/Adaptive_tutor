@@ -6,10 +6,12 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ProtectedRoute from "./components/ProtectedRoute";
 import SubjectDashboard from "./pages/SubjectDashboard";
 import ModulePage from "./pages/ModulePage";
-import TeacherDashboard from "./pages/TeacherDashboard";
 import AttemptHistory from "./pages/AttemptHistory";
-import StudentDetailPage from "./pages/StudentDetailPage"; // Import the new page
+import StudentDetailPage from "./pages/StudentDetailPage";
 import { useAuth } from "./context/AuthProvider";
+import TeacherLayout from "./layouts/TeacherLayout";
+import ClassAnalyticsDashboard from "./pages/ClassAnalyticsDashboard";
+import StudentListPage from "./pages/StudentListPage";
 
 export default function App() {
   const { user, doLogout } = useAuth();
@@ -43,51 +45,40 @@ export default function App() {
       
       <main className="container mx-auto p-4 mt-4">
         <Routes>
+          {/* Auth Routes */}
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
 
+          {/* Teacher Routes */}
           <Route 
-            path="/teacher/dashboard" 
+            path="/teacher"
             element={
               <ProtectedRoute>
-                {user?.role === 'teacher' ? <TeacherDashboard /> : <Navigate to="/dashboard" />}
+                {user?.role === 'teacher' ? <TeacherLayout /> : <Navigate to="/dashboard" />}
               </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/teacher/student/:studentId" 
-            element={
-              <ProtectedRoute>
-                {user?.role === 'teacher' ? <StudentDetailPage /> : <Navigate to="/dashboard" />}
-              </ProtectedRoute>
-            } 
-          />
+            }
+          >
+            <Route path="dashboard" element={<ClassAnalyticsDashboard />} />
+            <Route path="students" element={<StudentListPage />} />
+            <Route path="student/:studentId" element={<StudentDetailPage />} />
+          </Route>
+          
+          {/* Student Routes */}
           <Route 
             path="/dashboard" 
-            element={
-              <ProtectedRoute>
-                <SubjectDashboard />
-              </ProtectedRoute>
-            } 
+            element={<ProtectedRoute><SubjectDashboard /></ProtectedRoute>} 
           />
           <Route 
             path="/module/:moduleId" 
-            element={
-              <ProtectedRoute>
-                <ModulePage />
-              </ProtectedRoute>
-            } 
+            element={<ProtectedRoute><ModulePage /></ProtectedRoute>} 
           />
           <Route
             path="/history"
-            element={
-              <ProtectedRoute>
-                <AttemptHistory />
-              </ProtectedRoute>
-            }
+            element={<ProtectedRoute><AttemptHistory /></ProtectedRoute>}
           />
 
+          {/* Root Redirect */}
           <Route path="/" element={<Navigate to={user ? (user.role === 'teacher' ? "/teacher/dashboard" : "/dashboard") : "/login"} replace />} />
         </Routes>
       </main>

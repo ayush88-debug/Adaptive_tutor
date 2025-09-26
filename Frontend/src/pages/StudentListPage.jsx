@@ -8,7 +8,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 
-const TeacherDashboard = () => {
+const StudentListPage = () => {
   const [studentData, setStudentData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -37,7 +37,7 @@ const TeacherDashboard = () => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Teacher Dashboard</CardTitle>
+        <CardTitle>Students</CardTitle>
         <CardDescription>Overview of all student progress by subject.</CardDescription>
       </CardHeader>
       <CardContent>
@@ -101,4 +101,4 @@ const TeacherDashboard = () => {
   );
 };
 
-export default TeacherDashboard;
+export default StudentListPage;
