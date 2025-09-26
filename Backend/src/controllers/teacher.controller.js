@@ -96,20 +96,17 @@ const getStudentDetails = asyncHandler(async (req, res) => {
 });
 
 const getClassAnalytics = asyncHandler(async (req, res) => {
-    // KPIs
     const totalStudents = await User.countDocuments({ role: 'student' });
     const totalSubjects = await Subject.countDocuments();
-    const allAttempts = await Attempt.find();
+    const allAttempts = await Attempt.find().lean();
     const overallAverageScore = allAttempts.length > 0 ? Math.round(allAttempts.reduce((sum, a) => sum + a.score, 0) / allAttempts.length) : 0;
     
-    // Performance Distribution
     const performanceDistribution = {
         mastery: allAttempts.filter(a => a.score >= 90).length,
         proficient: allAttempts.filter(a => a.score >= 70 && a.score < 90).length,
         needsImprovement: allAttempts.filter(a => a.score < 70).length,
     };
 
-    // Subject-wise Performance
     const subjects = await Subject.find().populate('modules').lean();
     const subjectPerformance = await Promise.all(subjects.map(async (subject) => {
         const moduleIds = subject.modules.map(m => m._id);
@@ -126,14 +123,15 @@ const getClassAnalytics = asyncHandler(async (req, res) => {
         };
     }));
 
-    // Most Challenging Modules
-    const challengingModules = await Attempt.aggregate([
-        { $group: { _id: "$moduleId", avgScore: { $avg: "$score" }, attempts: { $sum: 1 } } },
-        { $sort: { avgScore: 1 } },
-        { $limit: 5 },
-        { $lookup: { from: 'modules', localField: '_id', foreignField: '_id', as: 'moduleDetails' } },
-        { $unwind: "$moduleDetails" },
-        { $project: { _id: 0, moduleId: "$_id", title: "$moduleDetails.title", averageScore: "$avgScore", totalAttempts: "$attempts" } }
+    const performanceOverTime = await Attempt.aggregate([
+        {
+            $group: {
+                _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                averageScore: { $avg: "$score" }
+            }
+        },
+        { $sort: { _id: 1 } },
+        { $project: { _id: 0, date: "$_id", averageScore: { $round: ["$averageScore", 2] } } }
     ]);
 
     const analyticsData = {
@@ -145,11 +143,34 @@ const getClassAnalytics = asyncHandler(async (req, res) => {
         },
         performanceDistribution,
         subjectPerformance,
-        challengingModules,
+        performanceOverTime
     };
 
     return res.status(200).json(new apiResponse(200, analyticsData, "Class analytics retrieved successfully"));
 });
 
+const getChallengingModules = asyncHandler(async (req, res) => {
+    const { subjectId } = req.query;
+    
+    let moduleFilter = {};
+    if (subjectId && mongoose.Types.ObjectId.isValid(subjectId)) {
+        const modules = await Module.find({ subjectId: subjectId }).select('_id');
+        const moduleIds = modules.map(m => m._id);
+        moduleFilter = { moduleId: { $in: moduleIds } };
+    }
 
-export { getStudentsProgress, getStudentDetails, getClassAnalytics };
+    const challengingModules = await Attempt.aggregate([
+        { $match: moduleFilter },
+        { $group: { _id: "$moduleId", avgScore: { $avg: "$score" }, attempts: { $sum: 1 } } },
+        { $sort: { avgScore: 1 } },
+        { $limit: 5 },
+        { $lookup: { from: 'modules', localField: '_id', foreignField: '_id', as: 'moduleDetails' } },
+        { $unwind: "$moduleDetails" },
+        { $project: { _id: 0, moduleId: "$_id", title: "$moduleDetails.title", averageScore: { $round: ["$avgScore", 2] }, totalAttempts: "$attempts" } }
+    ]);
+    
+    return res.status(200).json(new apiResponse(200, { challengingModules }, "Challenging modules retrieved"));
+});
+
+
+export { getStudentsProgress, getStudentDetails, getClassAnalytics, getChallengingModules };
