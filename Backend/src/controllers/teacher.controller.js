@@ -1,6 +1,8 @@
 import User from "../models/users.model.js";
 import Attempt from "../models/attempt.model.js";
 import StudentProgress from "../models/studentProgress.model.js";
+import Subject from "../models/subject.model.js";
+import Module from "../models/module.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { apiError } from "../utils/apiError.js";
@@ -47,7 +49,7 @@ const getStudentsProgress = asyncHandler(async (req, res) => {
   return res.status(200).json(new apiResponse(200, { students: studentSummaries }, "Student progress retrieved"));
 });
 
-export const getStudentDetails = asyncHandler(async (req, res) => {
+const getStudentDetails = asyncHandler(async (req, res) => {
   const { studentId } = req.params;
 
   // 1. Fetch student's basic info
@@ -93,5 +95,61 @@ export const getStudentDetails = asyncHandler(async (req, res) => {
   return res.status(200).json(new apiResponse(200, responseData, "Student details retrieved"));
 });
 
+const getClassAnalytics = asyncHandler(async (req, res) => {
+    // KPIs
+    const totalStudents = await User.countDocuments({ role: 'student' });
+    const totalSubjects = await Subject.countDocuments();
+    const allAttempts = await Attempt.find();
+    const overallAverageScore = allAttempts.length > 0 ? Math.round(allAttempts.reduce((sum, a) => sum + a.score, 0) / allAttempts.length) : 0;
+    
+    // Performance Distribution
+    const performanceDistribution = {
+        mastery: allAttempts.filter(a => a.score >= 90).length,
+        proficient: allAttempts.filter(a => a.score >= 70 && a.score < 90).length,
+        needsImprovement: allAttempts.filter(a => a.score < 70).length,
+    };
 
-export { getStudentsProgress };
+    // Subject-wise Performance
+    const subjects = await Subject.find().populate('modules').lean();
+    const subjectPerformance = await Promise.all(subjects.map(async (subject) => {
+        const moduleIds = subject.modules.map(m => m._id);
+        const attempts = await Attempt.find({ moduleId: { $in: moduleIds } }).lean();
+        const totalAttempts = attempts.length;
+        const averageScore = totalAttempts > 0 ? Math.round(attempts.reduce((sum, a) => sum + a.score, 0) / totalAttempts) : 0;
+        const passRate = totalAttempts > 0 ? Math.round((attempts.filter(a => a.passed).length / totalAttempts) * 100) : 0;
+        return {
+            subjectId: subject._id,
+            subjectTitle: subject.title,
+            averageScore,
+            passRate,
+            totalAttempts,
+        };
+    }));
+
+    // Most Challenging Modules
+    const challengingModules = await Attempt.aggregate([
+        { $group: { _id: "$moduleId", avgScore: { $avg: "$score" }, attempts: { $sum: 1 } } },
+        { $sort: { avgScore: 1 } },
+        { $limit: 5 },
+        { $lookup: { from: 'modules', localField: '_id', foreignField: '_id', as: 'moduleDetails' } },
+        { $unwind: "$moduleDetails" },
+        { $project: { _id: 0, moduleId: "$_id", title: "$moduleDetails.title", averageScore: "$avgScore", totalAttempts: "$attempts" } }
+    ]);
+
+    const analyticsData = {
+        kpis: {
+            totalStudents,
+            totalSubjects,
+            totalAttempts: allAttempts.length,
+            overallAverageScore,
+        },
+        performanceDistribution,
+        subjectPerformance,
+        challengingModules,
+    };
+
+    return res.status(200).json(new apiResponse(200, analyticsData, "Class analytics retrieved successfully"));
+});
+
+
+export { getStudentsProgress, getStudentDetails, getClassAnalytics };
