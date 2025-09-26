@@ -39,7 +39,11 @@ export default function Login() {
       }
 
       setUser(data.user);
-      navigate("/");
+      if (data.user.role === 'teacher') {
+        navigate("/teacher/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.message || "Login failed");
     }

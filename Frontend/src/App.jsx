@@ -18,15 +18,10 @@ export default function App() {
     <div className="min-h-screen bg-slate-50">
       <nav className="bg-white shadow-sm border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3 flex justify-between items-center">
-          <Link to={user ? "/dashboard" : "/"} className="text-xl font-bold text-slate-800">
+          <Link to={user ? (user.role === 'teacher' ? "/teacher/dashboard" : "/dashboard") : "/"} className="text-xl font-bold text-slate-800">
             Adaptive Tutor
           </Link>
           <div className="flex items-center gap-4">
-            {user?.role === 'teacher' && (
-              <Link to="/teacher/dashboard" className="text-blue-600 hover:underline font-medium text-sm">
-                Teacher View
-              </Link>
-            )}
             {user && user.role === 'student' && (
               <Link to="/history" className="text-blue-600 hover:underline font-medium text-sm">
                 My History
@@ -93,7 +88,7 @@ export default function App() {
             }
           />
 
-          <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
+          <Route path="/" element={<Navigate to={user ? (user.role === 'teacher' ? "/teacher/dashboard" : "/dashboard") : "/login"} replace />} />
         </Routes>
       </main>
     </div>
