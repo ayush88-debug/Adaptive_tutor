@@ -6,6 +6,7 @@ import Module from "../models/module.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { apiResponse } from "../utils/apiResponse.js";
 import { apiError } from "../utils/apiError.js";
+import mongoose from "mongoose";
 
 const getStudentsProgress = asyncHandler(async (req, res) => {
   const students = await User.find({ role: "student" }).select("_id username email").lean();
