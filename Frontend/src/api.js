@@ -68,6 +68,7 @@ export const getAttemptHistory = (userId) => client.get(`/api/v1/attempts/user/$
 export const getStudentsProgress = () => client.get("/api/v1/admin/students-progress");
 export const getStudentDetails = (studentId) => client.get(`/api/v1/admin/student/${studentId}`);
 export const getClassAnalytics = () => client.get("/api/v1/admin/class-analytics");
+export const getChallengingModules = (subjectId = '') => client.get(`/api/v1/admin/analytics/challenging-modules?subjectId=${subjectId}`);
 
 export const generateReport = (studentId, subjectId) => client.post('/api/v1/reports/generate', { userId: studentId, subjectId });
 export const getReports = (studentId) => client.get(`/api/v1/reports/user/${studentId}`);
