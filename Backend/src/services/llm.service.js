@@ -8,17 +8,17 @@ const MODEL = process.env.GROQ_MODEL || "llama3-70b-8192";
 const llm = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
   model: MODEL,
-  temperature: 0.3,
+  temperature: 0.4,
 });
 
 const lessonSchema = z.object({
-  title: z.string().describe("The mandatory title of the lesson."),
+  title: z.string().describe("The mandatory, engaging title of the lesson."),
   sections: z.array(z.object({
     heading: z.string().describe("The mandatory heading for this section."),
-    body: z.string().describe("The mandatory content for this section."),
-  })).min(1).describe("The mandatory array of lesson sections."),
-  codeSamples: z.array(z.string()).describe("An array of valid, JSON-escaped C++ code samples."),
-  keyTakeaways: z.array(z.string()).min(1).describe("A mandatory list of key takeaways."),
+    body: z.string().describe("A very detailed, multi-paragraph explanation of the concept suitable for a beginner. Must include real-world analogies and step-by-step logic."),
+    codeSample: z.string().optional().describe("An optional, complete, runnable, and well-commented C++ code sample specifically for this section. Omit for non-technical sections like introductions."),
+  })).min(4).describe("The mandatory array of at least 4 detailed lesson sections."),
+  keyTakeaways: z.array(z.string()).min(4).describe("A mandatory list of at least 4 key takeaways summarizing the main points."),
 });
 
 const quizSchema = z.object({
@@ -37,8 +37,21 @@ const remedialLessonChain = llm.withStructuredOutput(lessonSchema);
 export async function generateLesson(seedTopic, { user } = {}) {
   try {
     const prompt = ChatPromptTemplate.fromMessages([
-      ["system", "You are an expert Computer Science tutor. Your task is to provide educational content in a structured JSON format."],
-      ["human", `Create a lesson about the following topic: "{topic}".`],
+      ["system", `You are an expert Computer Science professor designing a lesson for an online learning platform like Coursera. 
+      Your audience is absolute beginners preparing for technical interviews. Your task is to provide an in-depth, high-quality lesson in a structured JSON format.`],
+      ["human", `
+      Topic: "{topic}".
+
+      Please create a comprehensive lesson based on this topic. The lesson must be structured as follows:
+      1.  **Title**: An engaging and clear title for the lesson.
+      2.  **Sections**: At least four detailed sections. Each section must contain:
+          - A clear \`heading\`.
+          - A detailed, multi-paragraph \`body\` of text that explains the concept in depth. Use real-world analogies.
+          - For sections explaining a technical concept, you **MUST** include a \`codeSample\`. This should be a complete, runnable, and well-commented C++ program. For introductory or summary sections, you can omit the \`codeSample\`. Ensure at least two sections in total have a \`codeSample\`.
+      3.  **Key Takeaways**: A list of at least four concise summary points.
+
+      The content must be thorough and beginner-friendly, providing a solid foundation on the topic.
+      `],
     ]);
     const chain = prompt.pipe(lessonChain);
     const result = await chain.invoke({ topic: seedTopic });
@@ -68,33 +81,42 @@ export async function generateQuizFromLesson(lesson, moduleId) {
 }
 
 export async function generateRemedialLesson(quiz, attempt, moduleTitle) {
-    try {
-        const prompt = ChatPromptTemplate.fromMessages([
-            ["system", "You are a patient tutor. A student struggled with a quiz. Your task is to generate a simpler, remedial lesson in a structured JSON format, focusing on their mistakes."],
-            ["human", `A student scored {score} on a quiz about "{topic}". They struggled with questions related to: {wrongQuestions}. Create a simplified lesson to help them understand these specific points.`],
-        ]);
-        const chain = prompt.pipe(remedialLessonChain);
+  try {
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", `You are a patient and encouraging tutor. A student has struggled with a quiz. Your task is to generate a simpler, more focused remedial lesson in a structured JSON format. The lesson should be as detailed and clear as a main lesson but focus only on the problem areas.`],
+      ["human", `A student scored {score} on a quiz about "{topic}". They particularly struggled with questions about these concepts: {wrongQuestions}. 
+      
+      Please create a simplified but detailed remedial lesson that re-explains these specific points. Your lesson must contain:
+      1.  **Title**: A clear title, such as "Reviewing {topic}".
+      2.  **Sections**: At least four detailed sections. For each section:
+          - Use a clear \`heading\`.
+          - Write a detailed \`body\` that breaks down the concept simply. Use a new analogy to explain it.
+          - For technical sections, include a simple, well-commented \`codeSample\`. Ensure at least two sections have a code sample.
+      3.  **Key Takeaways**: Summarize the most critical points in a short list of at least four items.
+      
+      The tone must be supportive and help rebuild the student's confidence.`],
+    ]);
+    const chain = prompt.pipe(remedialLessonChain);
 
-        const wrongQuestions = attempt.answers
-            .filter(a => !a.correct)
-            .map(a => quiz.questions.find(q => q._id.toString() === a.questionId.toString())?.text)
-            .filter(Boolean);
+    const wrongQuestions = attempt.answers
+        .filter(a => !a.correct)
+        .map(a => quiz.questions.find(q => q._id.toString() === a.questionId.toString())?.text)
+        .filter(Boolean);
 
-        const result = await chain.invoke({
-            score: attempt.score,
-            topic: moduleTitle,
-            wrongQuestions: wrongQuestions.join(', ') || "General review needed"
-        });
-        
-        result._meta = { model: MODEL, remedialForAttempt: attempt._id };
-        return result;
+    const result = await chain.invoke({
+        score: attempt.score,
+        topic: moduleTitle,
+        wrongQuestions: wrongQuestions.join(', ') || "General review needed"
+    });
+    
+    result._meta = { model: MODEL, remedialForAttempt: attempt._id };
+    return result;
 
-    } catch (err) {
-        console.error("Error in generateRemedialLesson:", err);
-        throw new apiError(500, `LLM generateRemedialLesson failed: ${err.message}`);
-    }
+  } catch (err) {
+      console.error("Error in generateRemedialLesson:", err);
+      throw new apiError(500, `LLM generateRemedialLesson failed: ${err.message}`);
+  }
 }
-
 
 const reportSchema = z.object({
   studentPerformanceSummary: z.string().describe("A brief, one-paragraph summary of the student's overall performance, mentioning trends over time."),

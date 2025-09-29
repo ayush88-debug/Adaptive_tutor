@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { CodeBlock, CodeBlockHeader, CodeBlockBody, CodeBlockContent, CodeBlockCopyButton } from '@/components/ui/CodeBlock';
 
 // Simple Radio Group components for the quiz
 const RadioGroup = ({ children, ...props }) => <div {...props}>{children}</div>;
@@ -105,18 +106,19 @@ const ModulePage = () => {
               <div key={index} className="mb-6">
                 <h3 className="font-semibold text-xl border-b pb-2 mb-2">{section.heading}</h3>
                 <p className="text-gray-700 whitespace-pre-wrap">{section.body}</p>
+                {section.codeSample && section.codeSample.trim() !== '' && (
+                  <CodeBlock>
+                    <CodeBlockHeader>
+                      <span className="text-xs font-sans text-slate-400">C++ Example</span>
+                      <CodeBlockCopyButton code={section.codeSample} />
+                    </CodeBlockHeader>
+                    <CodeBlockBody>
+                      <CodeBlockContent code={section.codeSample} />
+                    </CodeBlockBody>
+                  </CodeBlock>
+                )}
               </div>
             ))}
-            {content.codeSamples && content.codeSamples.length > 0 && (
-                <>
-                    <h3 className="font-semibold text-xl border-b pb-2 mb-2 mt-8">Code Samples</h3>
-                    {content.codeSamples.map((sample, index) => (
-                        <pre key={index} className="bg-slate-800 text-white p-4 rounded-md overflow-x-auto">
-                            <code>{sample}</code>
-                        </pre>
-                    ))}
-                </>
-            )}
              <h3 className="font-semibold text-xl border-b pb-2 mb-2 mt-8">Key Takeaways</h3>
              <ul className="list-disc pl-5 space-y-2">
                 {content.keyTakeaways.map((takeaway, index) => (
@@ -125,7 +127,6 @@ const ModulePage = () => {
              </ul>
           </CardContent>
           
-          {/* --- NEW: Only show the "Start Quiz" button if the module is NOT completed --- */}
           {!isCompleted && (
             <CardFooter>
               <Button onClick={() => setView('quiz')} size="lg" disabled={!quizId}>Start Quiz</Button>
@@ -134,6 +135,7 @@ const ModulePage = () => {
         </Card>
       )}
 
+      {/* Quiz and Result views remain the same */}
       {view === 'quiz' && quizId && (
          <Card>
             <CardHeader>
