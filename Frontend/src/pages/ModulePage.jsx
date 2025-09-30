@@ -230,7 +230,7 @@ const ModulePage = () => {
 
                                                 <Label className={`
                                                   ${isCorrectChoice ? 'text-green-700 font-semibold' : ''} 
-                                                  ${isStudentChoice && !isCorrectChoice ? 'text-red-700 line-through' : ''}
+                                                  ${isStudentChoice && !isCorrectChoice ? 'text-red-700' : ''}
                                                 `}>
                                                     {opt}
                                                 </Label>
