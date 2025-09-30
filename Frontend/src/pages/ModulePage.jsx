@@ -4,28 +4,23 @@ import * as api from '../api';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { Progress } from "@/components/ui/progress";
+import { CheckCircle2, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { CodeBlock, CodeBlockHeader, CodeBlockBody, CodeBlockContent, CodeBlockCopyButton } from '@/components/ui/CodeBlock';
-
-// Simple Radio Group components for the quiz
-const RadioGroup = ({ children, ...props }) => <div {...props}>{children}</div>;
-const RadioGroupItem = ({ id, name, value, onChange, label, disabled }) => (
-    <div className="flex items-center space-x-2">
-        <input type="radio" id={id} name={name} value={value} onChange={onChange} disabled={disabled} />
-        <Label htmlFor={id} className={`font-normal ${disabled ? 'text-slate-400' : 'cursor-pointer'}`}>{label}</Label>
-    </div>
-);
 
 const ModulePage = () => {
   const { moduleId } = useParams();
   const navigate = useNavigate();
   
   const [moduleData, setModuleData] = useState(null);
-  const [view, setView] = useState('lesson'); // 'lesson', 'quiz', 'result'
+  const [view, setView] = useState('lesson');
   const [answers, setAnswers] = useState({});
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  // New state for interactive quiz
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const fetchModuleData = async () => {
     try {
@@ -82,15 +77,18 @@ const ModulePage = () => {
       setView('lesson');
       setResult(null);
       setAnswers({});
+      setCurrentQuestionIndex(0); // Reset quiz progress
       fetchModuleData();
     }
   };
 
-  if (loading && !moduleData) return <div className="text-center p-8 text-slate-500">Loading module... This may take a moment as the AI generates content.</div>;
+  if (loading && !moduleData) return <div className="text-center p-8 text-slate-500">Loading module...</div>;
   if (error) return <div className="text-center p-8 text-red-500 font-semibold">{error}</div>;
   if (!moduleData) return <div className="text-center p-8">Module data not found.</div>;
 
   const { content, quizId, subjectId, isCompleted } = moduleData;
+  const quizQuestions = quizId?.questions || [];
+  const currentQuestion = quizQuestions[currentQuestionIndex];
 
   return (
     <div>
@@ -135,37 +133,81 @@ const ModulePage = () => {
         </Card>
       )}
 
-      {/* Quiz and Result views remain the same */}
-      {view === 'quiz' && quizId && (
-         <Card>
+      {/* NEW Interactive Quiz View */}
+      {view === 'quiz' && currentQuestion && (
+         <Card className="max-w-4xl mx-auto">
             <CardHeader>
-              <p className="text-sm font-medium text-blue-600">{subjectId?.title || 'Subject'}</p>
-              <CardTitle>Quiz: {content.title}</CardTitle>
+              <div className="mb-4">
+                  <p className="text-sm font-medium text-blue-600">{subjectId?.title || 'Subject'}</p>
+                  <CardTitle>Quiz: {content.title}</CardTitle>
+              </div>
+              <div className="flex items-center gap-4">
+                <Progress value={((currentQuestionIndex + 1) / quizQuestions.length) * 100} className="flex-1"/>
+                <span className="text-sm font-medium text-slate-500">
+                  {currentQuestionIndex + 1} / {quizQuestions.length}
+                </span>
+              </div>
             </CardHeader>
-            <CardContent className="space-y-8">
-                {error && <p className="text-center text-sm text-red-500">{error}</p>}
-                {quizId.questions.map((q, index) => (
-                    <div key={q._id}>
-                        <p className="font-semibold mb-2">{index + 1}. {q.text}</p>
-                        <RadioGroup>
-                            {q.options.map((opt, i) => (
-                                <RadioGroupItem 
-                                    key={i} 
-                                    id={`${q._id}-${i}`} 
-                                    name={q._id}
-                                    value={i} 
-                                    label={opt} 
-                                    onChange={(e) => handleAnswerChange(q._id, e.target.value)}
-                                />
-                            ))}
-                        </RadioGroup>
-                    </div>
-                ))}
+
+            <CardContent className="min-h-[250px]">
+                <h3 className="text-lg font-semibold mb-6">{currentQuestion.text}</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {currentQuestion.options.map((opt, i) => {
+                    const isSelected = answers[currentQuestion._id] === i.toString();
+                    return (
+                      <div key={i}>
+                        <input
+                          type="radio"
+                          id={`${currentQuestion._id}-${i}`}
+                          name={currentQuestion._id}
+                          value={i}
+                          checked={isSelected}
+                          onChange={(e) => handleAnswerChange(currentQuestion._id, e.target.value)}
+                          className="sr-only" // Hide the default radio button
+                        />
+                        <Label 
+                          htmlFor={`${currentQuestion._id}-${i}`}
+                          className={`
+                            flex items-center p-4 border rounded-lg cursor-pointer transition-colors
+                            ${isSelected 
+                              ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-500' 
+                              : 'bg-white hover:bg-slate-50 border-slate-200'
+                            }
+                          `}
+                        >
+                          <span className={`
+                            flex items-center justify-center h-6 w-6 rounded-full border mr-4
+                            ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300'}
+                          `}>
+                            {isSelected && <CheckCircle2 className="h-4 w-4 text-white" />}
+                          </span>
+                          {opt}
+                        </Label>
+                      </div>
+                    )
+                  })}
+                </div>
+                {error && <p className="text-center text-sm text-red-500 mt-4">{error}</p>}
             </CardContent>
-            <CardFooter>
-                 <Button onClick={handleSubmitQuiz} size="lg" disabled={loading}>
-                    {loading ? 'Submitting...' : 'Submit Quiz'}
+
+            <CardFooter className="flex justify-between">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+                  disabled={currentQuestionIndex === 0}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" /> Previous
                 </Button>
+
+                {currentQuestionIndex < quizQuestions.length - 1 ? (
+                  <Button onClick={() => setCurrentQuestionIndex(prev => prev + 1)}>
+                    Next <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                ) : (
+                  <Button onClick={handleSubmitQuiz} disabled={loading}>
+                    {loading ? 'Submitting...' : 'Submit Quiz'}
+                  </Button>
+                )}
             </CardFooter>
          </Card>
       )}
