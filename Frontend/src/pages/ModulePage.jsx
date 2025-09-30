@@ -19,7 +19,6 @@ const ModulePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // New state for interactive quiz
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const fetchModuleData = async () => {
@@ -77,7 +76,7 @@ const ModulePage = () => {
       setView('lesson');
       setResult(null);
       setAnswers({});
-      setCurrentQuestionIndex(0); // Reset quiz progress
+      setCurrentQuestionIndex(0);
       fetchModuleData();
     }
   };
@@ -133,7 +132,6 @@ const ModulePage = () => {
         </Card>
       )}
 
-      {/* NEW Interactive Quiz View */}
       {view === 'quiz' && currentQuestion && (
          <Card className="max-w-4xl mx-auto">
             <CardHeader>
@@ -163,22 +161,13 @@ const ModulePage = () => {
                           value={i}
                           checked={isSelected}
                           onChange={(e) => handleAnswerChange(currentQuestion._id, e.target.value)}
-                          className="sr-only" // Hide the default radio button
+                          className="sr-only"
                         />
                         <Label 
                           htmlFor={`${currentQuestion._id}-${i}`}
-                          className={`
-                            flex items-center p-4 border rounded-lg cursor-pointer transition-colors
-                            ${isSelected 
-                              ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-500' 
-                              : 'bg-white hover:bg-slate-50 border-slate-200'
-                            }
-                          `}
+                          className={`flex items-center p-4 border rounded-lg cursor-pointer transition-colors ${isSelected ? 'bg-blue-100 border-blue-500 ring-2 ring-blue-500' : 'bg-white hover:bg-slate-50 border-slate-200'}`}
                         >
-                          <span className={`
-                            flex items-center justify-center h-6 w-6 rounded-full border mr-4
-                            ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300'}
-                          `}>
+                          <span className={`flex items-center justify-center h-6 w-6 rounded-full border mr-4 ${isSelected ? 'bg-blue-500 border-blue-500' : 'border-slate-300'}`}>
                             {isSelected && <CheckCircle2 className="h-4 w-4 text-white" />}
                           </span>
                           {opt}
@@ -191,14 +180,9 @@ const ModulePage = () => {
             </CardContent>
 
             <CardFooter className="flex justify-between">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
-                  disabled={currentQuestionIndex === 0}
-                >
+                <Button variant="outline" onClick={() => setCurrentQuestionIndex(prev => prev - 1)} disabled={currentQuestionIndex === 0}>
                   <ArrowLeft className="h-4 w-4 mr-2" /> Previous
                 </Button>
-
                 {currentQuestionIndex < quizQuestions.length - 1 ? (
                   <Button onClick={() => setCurrentQuestionIndex(prev => prev + 1)}>
                     Next <ArrowRight className="h-4 w-4 ml-2" />
@@ -211,47 +195,52 @@ const ModulePage = () => {
             </CardFooter>
          </Card>
       )}
-
+      
       {view === 'result' && result && (
           <Card>
             <CardHeader className="text-center">
                 <CardTitle className="text-3xl">Quiz Result</CardTitle>
-                <CardDescription className="text-lg">Your Score: <span className="font-bold text-2xl">{result.score} / 100</span></CardDescription>
+                <CardDescription className="text-lg">Your Score: <span className="font-bold text-2xl">{result.score}%</span></CardDescription>
                  {result.passed ? (
                     <p className="text-green-600 mt-2">Congratulations! You have passed this module.</p>
                 ) : (
-                    <p className="text-orange-600 mt-2">You didn't quite reach the 90% mastery threshold. A new, simpler lesson is ready for you to review.</p>
+                    <p className="text-orange-600 mt-2">You didn't quite reach the mastery threshold. A new, simpler lesson is ready for you to review.</p>
                 )}
             </CardHeader>
             <CardContent>
                 <h3 className="text-xl font-semibold mb-4 text-center">Review Your Answers</h3>
                 <div className="space-y-6">
                     {quizId.questions.map((q, index) => {
-                        const studentAnswerRecord = result.attempt?.answers.find(a => a.questionId === q._id);
+                        const studentAnswerRecord = result.attempt?.answers.find(a => a.questionId.toString() === q._id.toString());
                         const studentChoiceIndex = studentAnswerRecord?.chosenIndex;
-                        const isCorrect = studentAnswerRecord?.correct;
+                        const isQuestionCorrect = studentAnswerRecord?.correct;
 
                         return (
-                            <div key={q._id} className={`p-4 rounded-lg border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                            <div key={q._id} className={`p-4 rounded-lg border-2 ${isQuestionCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                                 <p className="font-semibold mb-2">{index + 1}. {q.text}</p>
                                 <div className="space-y-2">
                                     {q.options.map((opt, i) => {
                                         const isStudentChoice = i === studentChoiceIndex;
                                         const isCorrectChoice = i === q.correctIndex;
+                                        
                                         return (
                                             <div key={i} className="flex items-center gap-2">
-                                                {isStudentChoice && !isCorrect && <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />}
                                                 {isCorrectChoice && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
-                                                <Label className={`${isCorrectChoice ? 'font-bold text-green-700' : ''} ${isStudentChoice && !isCorrect ? 'line-through text-red-700' : ''}`}>
+                                                {isStudentChoice && !isCorrectChoice && <XCircle className="h-5 w-5 text-red-500 flex-shrink-0" />}
+
+                                                <Label className={`
+                                                  ${isCorrectChoice ? 'text-green-700 font-semibold' : ''} 
+                                                  ${isStudentChoice && !isCorrectChoice ? 'text-red-700 line-through' : ''}
+                                                `}>
                                                     {opt}
                                                 </Label>
                                             </div>
                                         )
                                     })}
                                 </div>
-                                <div className="mt-2 p-2 bg-slate-100 rounded">
-                                    <p className="text-sm font-semibold">Explanation:</p>
-                                    <p className="text-sm text-slate-700">{q.explanation}</p>
+                                <div className="mt-3 p-2 bg-slate-100 rounded text-sm">
+                                    <p className="font-semibold">Explanation:</p>
+                                    <p className="text-slate-700">{q.explanation}</p>
                                 </div>
                             </div>
                         )
