@@ -19,34 +19,29 @@ const submitQuiz = asyncHandler(async (req, res) => {
   const progress = await StudentProgress.findOne({ userId, subjectId: module.subjectId });
   if (!progress) throw new apiError(400, "Student is not enrolled in this subject.");
 
-  // Determine if this quiz is a standard one or a remedial one
   const override = progress.moduleOverrides.find(o => o.moduleId.toString() === moduleId);
   const quizId = override ? override.quizId : module.quizId;
 
   const quiz = await Quiz.findById(quizId);
   if (!quiz) throw new apiError(404, "Quiz not found");
 
-  // Grade quiz
   let correctCount = 0;
   const answerRecords = answers.map(a => {
     const q = quiz.questions.id(a.questionId);
     const correct = q ? (q.correctIndex === parseInt(a.chosenIndex)) : false;
     if (correct) correctCount++;
-    return { questionId: a.questionId, chosenIndex: a.chosenIndex, correct };
+    return { questionId: a.questionId, chosenIndex: parseInt(a.chosenIndex), correct };
   });
 
   const score = Math.round((correctCount / quiz.questions.length) * 100);
   const passed = score >= 90;
 
-  await Attempt.create({ userId, moduleId, quizId, answers: answerRecords, score, passed });
+  const newAttempt = await Attempt.create({ userId, moduleId, quizId, answers: answerRecords, score, passed });
 
-  // Update StudentProgress
   if (passed) {
-    progress.completedModules.addToSet(moduleId); // Add to completed list if not already there
-    // Remove any remedial override for this module since it's now passed
+    progress.completedModules.addToSet(moduleId);
     progress.moduleOverrides = progress.moduleOverrides.filter(o => o.moduleId.toString() !== moduleId);
   } else {
-    // FAILED: Create and save a PERSONALIZED remedial lesson
     console.log("Quiz failed. Generating personalized remedial content...");
     const remedialLesson = await llmService.generateRemedialLesson(quiz, { score, answers: answerRecords }, module.title);
     const newQuizData = await llmService.generateQuizFromLesson(remedialLesson);
@@ -58,7 +53,6 @@ const submitQuiz = asyncHandler(async (req, res) => {
         quizId: newQuiz._id,
     };
     
-    // Find if an override already exists and update it, otherwise push a new one
     const overrideIndex = progress.moduleOverrides.findIndex(o => o.moduleId.toString() === moduleId);
     if (overrideIndex > -1) {
         progress.moduleOverrides[overrideIndex] = newOverride;
@@ -69,7 +63,7 @@ const submitQuiz = asyncHandler(async (req, res) => {
   
   await progress.save();
   
-  return res.status(201).json(new apiResponse(201, { score, passed, remedialAvailable: !passed }, "Attempt recorded and progress updated"));
+  return res.status(201).json(new apiResponse(201, { score, passed, remedialAvailable: !passed, attempt: newAttempt }, "Attempt recorded and progress updated"));
 });
 
 export { submitQuiz };
