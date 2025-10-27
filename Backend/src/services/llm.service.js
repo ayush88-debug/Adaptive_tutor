@@ -22,12 +22,31 @@ const lessonSchema = z.object({
 });
 
 const quizSchema = z.object({
-    questions: z.array(z.object({
+  questions: z.array(
+    z.union([
+      // --- MCQ Question ---
+      z.object({
+        type: z.literal("mcq"),
         text: z.string().describe("The mandatory text of the multiple-choice question."),
         options: z.array(z.string()).length(4).describe("A mandatory array of exactly 4 possible answers."),
         correctIndex: z.number().min(0).max(3).describe("The mandatory 0-based index of the correct answer."),
         explanation: z.string().describe("A mandatory, brief explanation of the correct answer.")
-    })).length(10).describe("A mandatory array of exactly 10 quiz questions.")
+      }),
+      // --- Coding Question ---
+      z.object({
+        type: z.literal("coding"),
+        text: z.string().describe("The mandatory title or brief description of the coding problem."),
+        problemStatement: z.string().describe("The mandatory detailed problem statement for the coding exercise."),
+        language: z.enum(["cpp", "java", "python"]).describe("The programming language for the exercise (cpp, java, or python)."),
+        starterCode: z.string().optional().describe("Optional starter code boilerplate for the student."),
+        testCases: z.array(z.object({
+          input: z.string().optional().describe("Input for the test case (can be empty string for no input)."),
+          expectedOutput: z.string().describe("The expected output for the given input.")
+        })).min(1).describe("Mandatory array of at least one test case, including input and expected output."),
+        explanation: z.string().optional().describe("Optional brief explanation or hint related to the coding problem.")
+      })
+    ])
+  ).length(10).describe("A mandatory array of exactly 10 questions, mixing MCQs and coding exercises where appropriate.") 
 });
 
 const lessonChain = llm.withStructuredOutput(lessonSchema);
@@ -65,13 +84,40 @@ export async function generateLesson(seedTopic, { user } = {}) {
 
 export async function generateQuizFromLesson(lesson, moduleId) {
     try {
+        let languageHint = 'cpp';
+        if (lesson.title.toLowerCase().includes('java')) languageHint = 'java';
+        if (lesson.title.toLowerCase().includes('python')) languageHint = 'python';
+
         const prompt = ChatPromptTemplate.fromMessages([
-            ["system", "You are an expert quiz designer. Your task is to create a 10-question multiple-choice quiz in a structured JSON format based on the provided lesson title."],
-            ["human", "Create a quiz for a lesson titled: \"{title}\"."],
+            ["system", `You are an expert quiz designer for a Computer Science learning platform. Your task is to create a quiz with a mix of Multiple Choice Questions (MCQs) and practical Coding Exercises based on the provided lesson content. The output must be a structured JSON object.`],
+            ["human", `
+            Lesson Title: "{title}"
+            Lesson Content Summary: {contentSummary}
+
+            Please generate a quiz for this lesson adhering to the following structure:
+            1.  **Total Questions:** You must generate **exactly 10 questions** in total.
+            2.  **Question Mix:** Include 1-3 relevant 'coding' type questions ONLY IF the lesson content involves significant code examples or practical programming concepts (like OOP, DSA, or specific language features). For purely theoretical lessons, all 10 questions should be 'mcq'.
+            3.  **MCQ Format:** For 'mcq' type: include 'text', 'options' (array of 4 strings), 'correctIndex' (0-3), and 'explanation'.
+            4.  **Coding Question Format:** For 'coding' type:
+                - Include 'text' (a short title for the problem).
+                - Include a detailed 'problemStatement' describing the task.
+                - Include the 'language' (use '{languageHint}' if appropriate, otherwise infer from content). Supported languages: 'cpp', 'java', 'python'.
+                - Include optional 'starterCode' if helpful.
+                - **Crucially**, include at least 2 'testCases', each with an 'input' (string, can be empty) and 'expectedOutput' (string).
+                - Include an optional 'explanation' or hint.
+
+            Ensure the questions accurately assess understanding of the key concepts from the lesson summary.
+            `],
         ]);
         const chain = prompt.pipe(quizChain);
+
+
+        const contentSummary = lesson.sections.map(s => `${s.heading}: ${s.body.substring(0, 150)}...`).join('\n');
+
         const result = await chain.invoke({
-            title: lesson.title
+            title: lesson.title,
+            contentSummary: contentSummary,
+            languageHint: languageHint
         });
         return result;
     } catch (err) {
