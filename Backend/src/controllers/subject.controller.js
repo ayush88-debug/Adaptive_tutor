@@ -10,8 +10,8 @@ import { apiError } from "../utils/apiError.js";
 const getSubjects = asyncHandler(async (req, res) => {
   const subjects = await Subject.find().populate({
     path: "modules",
-    select: "title order seedTopic"
-  }).sort({ createdAt: 1 });
+    select: "title order seedTopic youtubeLinks"
+  }).sort({ displayOrder: 1, title: 1 });
 
   return res.status(200).json(new apiResponse(200, { subjects }, "Subjects retrieved"));
 });
@@ -62,13 +62,60 @@ async function seedCppSubject() {
         return;
     }
 
-    const subject = await Subject.create({ key: "cpp", title: "C++ Programming", modules: [] });
+    const subject = await Subject.create({ key: "cpp", title: "C++ Programming", modules: [], displayOrder: 1 });
     const moduleData = [
-        { order: 1, title: "Intro to C++", seedTopic: "History & setup, structure of a C++ program", subjectId: subject._id },
-        { order: 2, title: "Variables & Types", seedTopic: "Primitive types, variables, constants in C++", subjectId: subject._id },
-        { order: 3, title: "Control Flow", seedTopic: "if/else, loops, switch statements in C++", subjectId: subject._id },
-        { order: 4, title: "Functions", seedTopic: "Function declaration, parameters, return values in C++", subjectId: subject._id },
-        { order: 5, title: "Pointers", seedTopic: "Pointers, references, and basics of memory management in C++", subjectId: subject._id },
+        {
+            order: 1,
+            title: "Intro to C++",
+            seedTopic: "History & setup, structure of a C++ program",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://www.youtube.com/watch?v=TVXEfw6Nrjk&list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj&index=3", 
+                "https://www.youtube.com/watch?v=fi2InG7csKo&list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj&index=4",
+                "https://www.youtube.com/watch?v=SeR2aDYoJAI&list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj&index=6"  // What Is C++? (Programming with Mosh)
+            ]
+        },
+        {
+            order: 2,
+            title: "Variables & Types",
+            seedTopic: "Primitive types, variables, constants in C++",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://www.youtube.com/watch?v=pJTZTHMDuB0&list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj&index=8", // Example Link 1
+                "https://www.youtube.com/watch?v=AquOdf9orxg&list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj&index=9" // Example Link 2
+            ]
+        },
+        {
+            order: 3,
+            title: "Control Flow",
+            seedTopic: "if/else, loops, switch statements in C++",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://www.youtube.com/watch?v=PnV4e9lbiM4&list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj&index=21",
+                "https://www.youtube.com/watch?v=NG0Iw6xNO0s&list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj&index=22",
+                "https://youtu.be/2BYSfp08ET4?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj" // Example Link 1
+            ]
+        },
+        {
+            order: 4,
+            title: "Functions",
+            seedTopic: "Function declaration, parameters, return values in C++",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://youtu.be/7ThRtb-EMh8?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj",
+                "https://youtu.be/1HYbufxsE2c?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj" // Example Link 1
+            ]
+        },
+        {
+            order: 5,
+            title: "Pointers",
+            seedTopic: "Pointers, references, and basics of memory management in C++",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://youtu.be/ecePzBvAMKg?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj", // Example Link 1
+                "https://www.youtube.com/watch?v=q6_lN-CQN2s" // Example Link 2
+            ]
+        },
     ];
     const createdModules = await Module.insertMany(moduleData);
     subject.modules = createdModules.map(m => m._id);
@@ -84,12 +131,49 @@ async function seedOopSubject() {
         return;
     }
 
-    const subject = await Subject.create({ key: "oop", title: "Object-Oriented Programming", modules: [] });
+    const subject = await Subject.create({ key: "oop", title: "Object-Oriented Programming", modules: [], displayOrder: 2 });
     const moduleData = [
-        { order: 1, title: "Core OOP Concepts", seedTopic: "Introduction to Encapsulation, Abstraction, Inheritance, and Polymorphism", subjectId: subject._id },
-        { order: 2, title: "Classes and Objects", seedTopic: "Defining classes, creating objects, constructors, and destructors", subjectId: subject._id },
-        { order: 3, title: "Inheritance", seedTopic: "Types of inheritance, base and derived classes, access control", subjectId: subject._id },
-        { order: 4, title: "Polymorphism", seedTopic: "Function overloading, virtual functions, and runtime polymorphism", subjectId: subject._id },
+        {
+            order: 1,
+            title: "Core OOP Concepts",
+            seedTopic: "Introduction to Encapsulation, Abstraction, Inheritance, and Polymorphism",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://www.youtube.com/watch?v=pTB0EiLXUC8", // Object-oriented Programming in 7 minutes (Mosh)
+                "https://youtu.be/zCja0Jd52KU?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj"  // OOP Explained (CodeWithHarry - Hindi)
+            ]
+        },
+        {
+            order: 2,
+            title: "Classes and Objects",
+            seedTopic: "Defining classes, creating objects, constructors, and destructors",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://youtu.be/TOG6xCEJU3M?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj",
+                "https://youtu.be/aD6uxHWec-E?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj",
+                "https://youtu.be/XM97u2vhWtI?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj" // Example Link 1
+            ]
+        },
+        {
+            order: 3,
+            title: "Inheritance",
+            seedTopic: "Types of inheritance, base and derived classes, access control",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://youtu.be/ipd4SQY0Ehg?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj",
+                "https://youtu.be/2sN_GoaLmMw?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj" // Example Link 1
+            ]
+        },
+        {
+            order: 4,
+            title: "Polymorphism",
+            seedTopic: "Function overloading, virtual functions, and runtime polymorphism",
+            subjectId: subject._id,
+            youtubeLinks: [
+                "https://youtu.be/rnYOshIg7mU?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj",
+                "https://youtu.be/iUXwbydT2J4?list=PLxCzCOWd7aiF6yRNI5OHQsnUJQfl7Geqj" // Example Link 1
+            ]
+        },
     ];
     const createdModules = await Module.insertMany(moduleData);
     subject.modules = createdModules.map(m => m._id);

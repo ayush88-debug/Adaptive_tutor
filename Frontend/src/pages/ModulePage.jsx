@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { CheckCircle2, XCircle, ArrowLeft, ArrowRight } from 'lucide-react';
 import { CodeBlock, CodeBlockHeader, CodeBlockBody, CodeBlockContent, CodeBlockCopyButton } from '@/components/ui/CodeBlock';
+import { Youtube } from 'lucide-react';
 
 const ModulePage = () => {
   const { moduleId } = useParams();
@@ -122,6 +123,28 @@ const ModulePage = () => {
                     <li key={index}>{takeaway}</li>
                 ))}
              </ul>
+             
+             {moduleData.youtubeLinks && moduleData.youtubeLinks.length > 0 && (
+                <>
+                    <h3 className="font-semibold text-xl border-b pb-2 mb-2 mt-8">Further Learning (Videos)</h3>
+                    <ul className="list-none pl-0 space-y-3">
+                        {moduleData.youtubeLinks.map((link, index) => (
+                            <li key={index} className="not-prose"> {/* Add 'not-prose' to prevent prose styles */}
+                                <a
+                                    href={link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-2 p-3 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors text-blue-600 hover:text-blue-800 no-underline"
+                                >
+                                    <Youtube className="h-5 w-5 text-red-600 flex-shrink-0" />
+                                    <span className="truncate">{link}</span> {/* Use truncate to prevent long links breaking layout */}
+                                </a>
+                            </li>
+                        ))}
+                    </ul>
+                </>
+             )}
+             
           </CardContent>
           
           {!isCompleted && (
