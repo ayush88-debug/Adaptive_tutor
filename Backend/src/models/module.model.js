@@ -6,7 +6,8 @@ const moduleSchema = new mongoose.Schema({
   title: { type: String, required: true },
   seedTopic: { type: String, required: true },
   content: { type: mongoose.Schema.Types.Mixed }, // generated lesson JSON
-  quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' }
+  quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' },
+  youtubeLinks: [{ type: String }] // Array of YouTube video URLs
 }, { timestamps: true });
 
 export default mongoose.model('Module', moduleSchema);
