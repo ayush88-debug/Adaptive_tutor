@@ -1,9 +1,13 @@
 import mongoose from 'mongoose';
 
 const answerSchema = new mongoose.Schema({
-  questionId: mongoose.Schema.Types.ObjectId,
+  questionId: { 
+    type: mongoose.Schema.Types.ObjectId,
+    required: true 
+  },
   chosenIndex: Number,
-  correct: Boolean
+  submittedCode: String,
+  correct: Boolean,
 }, { _id: false });
 
 const attemptSchema = new mongoose.Schema({
@@ -11,7 +15,7 @@ const attemptSchema = new mongoose.Schema({
   moduleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Module', required: true },
   quizId: { type: mongoose.Schema.Types.ObjectId, ref: 'Quiz', required: true },
   answers: [answerSchema],
-  score: Number,
+  score: Number, 
   passed: Boolean
 }, { timestamps: true });
 
