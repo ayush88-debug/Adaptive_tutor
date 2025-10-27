@@ -90,6 +90,22 @@ const ModulePage = () => {
   const quizQuestions = quizId?.questions || [];
   const currentQuestion = quizQuestions[currentQuestionIndex];
 
+
+  const getYouTubeVideoId = (url) => {
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.hostname === 'www.youtube.com' || urlObj.hostname === 'youtube.com') {
+        return urlObj.searchParams.get('v');
+      }
+      if (urlObj.hostname === 'youtu.be') {
+        return urlObj.pathname.slice(1); 
+      }
+    } catch (e) {
+      console.error("Error parsing YouTube URL:", e);
+    }
+    return null;
+  };
+
   return (
     <div>
       {view === 'lesson' && content && (
@@ -127,21 +143,35 @@ const ModulePage = () => {
              {moduleData.youtubeLinks && moduleData.youtubeLinks.length > 0 && (
                 <>
                     <h3 className="font-semibold text-xl border-b pb-2 mb-2 mt-8">Further Learning (Videos)</h3>
-                    <ul className="list-none pl-0 space-y-3">
-                        {moduleData.youtubeLinks.map((link, index) => (
-                            <li key={index} className="not-prose"> {/* Add 'not-prose' to prevent prose styles */}
-                                <a
-                                    href={link}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-2 p-3 bg-slate-100 hover:bg-slate-200 rounded-md transition-colors text-blue-600 hover:text-blue-800 no-underline"
-                                >
-                                    <Youtube className="h-5 w-5 text-red-600 flex-shrink-0" />
-                                    <span className="truncate">{link}</span> {/* Use truncate to prevent long links breaking layout */}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
+                    <div className="space-y-6"> {/* Use div for spacing */}
+                        {moduleData.youtubeLinks.map((link, index) => {
+                            const videoId = getYouTubeVideoId(link);
+                            if (!videoId) {
+                                // Optionally render a simple link if ID extraction fails
+                                return (
+                                    <p key={index} className="text-sm text-red-600">
+                                        Could not embed video: <a href={link} target="_blank" rel="noopener noreferrer">{link}</a>
+                                    </p>
+                                );
+                            }
+                            const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+                            return (
+                                <div key={index} className="flex justify-center"> {/* ADD THIS flex div */}
+                                    <div className="aspect-video relative w-full md:w-3/4 lg:w-2/3 xl:w-1/2"> {/* MODIFY THIS LINE */}
+                                        <iframe
+                                            className="absolute top-0 left-0 w-full h-full rounded-md border"
+                                            src={embedUrl}
+                                            title={`YouTube video player ${index + 1}`}
+                                            frameBorder="0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                            referrerPolicy="strict-origin-when-cross-origin"
+                                            allowFullScreen>
+                                        </iframe>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </>
              )}
              
