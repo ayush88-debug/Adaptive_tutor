@@ -11,7 +11,7 @@ import * as llmService from "../services/llm.service.js";
 const submitQuiz = asyncHandler(async (req, res) => {
   const { moduleId } = req.params;
   const userId = req.user._id;
-  const { answers } = req.body;
+  const { answers } = req.body; 
 
   const module = await Module.findById(moduleId);
   if (!module) throw new apiError(404, "Module not found");
@@ -25,25 +25,58 @@ const submitQuiz = asyncHandler(async (req, res) => {
   const quiz = await Quiz.findById(quizId);
   if (!quiz) throw new apiError(404, "Quiz not found");
 
-  let correctCount = 0;
+  let correctMcqCount = 0;
+  const mcqQuestions = quiz.questions.filter(q => q.type === 'mcq');
+  const totalMcqCount = mcqQuestions.length;
+
   const answerRecords = answers.map(a => {
     const q = quiz.questions.id(a.questionId);
-    const correct = q ? (q.correctIndex === parseInt(a.chosenIndex)) : false;
-    if (correct) correctCount++;
-    return { questionId: a.questionId, chosenIndex: parseInt(a.chosenIndex), correct };
-  });
+    if (!q) return null; 
 
-  const score = Math.round((correctCount / quiz.questions.length) * 100);
+    if (q.type === 'mcq') {
+      const chosenIndexNum = parseInt(a.chosenIndex);
+      const correct = q.correctIndex === chosenIndexNum;
+      if (correct) correctMcqCount++;
+      return { 
+        questionId: a.questionId, 
+        chosenIndex: chosenIndexNum, 
+        correct: correct 
+      };
+    } else if (q.type === 'coding') {
+      
+      return { 
+        questionId: a.questionId, 
+        submittedCode: a.submittedCode, 
+        correct: false 
+      };
+    }
+    return null;
+  }).filter(Boolean); 
+
+  
+  const score = totalMcqCount > 0 ? Math.round((correctMcqCount / totalMcqCount) * 100) : 100; 
+  
+  
+  
   const passed = score >= 90;
 
-  const newAttempt = await Attempt.create({ userId, moduleId, quizId, answers: answerRecords, score, passed });
+  const newAttempt = await Attempt.create({ 
+    userId, 
+    moduleId, 
+    quizId, 
+    answers: answerRecords, 
+    score, 
+    passed 
+  });
 
+  
+  
   if (passed) {
     progress.completedModules.addToSet(moduleId);
     progress.moduleOverrides = progress.moduleOverrides.filter(o => o.moduleId.toString() !== moduleId);
   } else {
     console.log("Quiz failed. Generating personalized remedial content...");
-    const remedialLesson = await llmService.generateRemedialLesson(quiz, { score, answers: answerRecords }, module.title);
+    const remedialLesson = await llmService.generateRemedialLesson(quiz, newAttempt, module.title);
     const newQuizData = await llmService.generateQuizFromLesson(remedialLesson);
     const newQuiz = await Quiz.create({ moduleId, questions: newQuizData.questions });
 
