@@ -339,7 +339,7 @@ const ModulePage = () => {
           <Card>
             <CardHeader className="text-center">
                 <CardTitle className="text-3xl">Quiz Result</CardTitle>
-                <CardDescription className="text-lg">Your Score: <span className="font-bold text-2xl">{result.score}%</span> (from MCQs)</CardDescription>
+                <CardDescription className="text-lg">Your Score: <span className="font-bold text-2xl">{result.score}%</span></CardDescription>
                  {result.passed ? (
                     <p className="text-green-600 mt-2">Congratulations! You have passed this module.</p>
                 ) : (
