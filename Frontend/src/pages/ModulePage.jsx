@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription }
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, ArrowLeft, ArrowRight, BrainCircuit, FileCode, Play, Loader2, CornerDownLeft } from 'lucide-react'; // Added icons
+import { CheckCircle2, XCircle, ArrowLeft, ArrowRight, BrainCircuit, FileCode, Play, Loader2, CornerDownLeft, Lightbulb } from 'lucide-react';
 import { CodeBlock, CodeBlockHeader, CodeBlockBody, CodeBlockContent, CodeBlockCopyButton } from '@/components/ui/CodeBlock';
 import CodeEditor from '@/components/ui/CodeEditor';
 import { Textarea } from "@/components/ui/textarea"; // Import Textarea
@@ -409,19 +409,20 @@ const ModulePage = () => {
                 <h3 className="text-xl font-semibold mb-4 text-center">Review Your Answers</h3>
                 <div className="space-y-6">
                     {quizId.questions.map((q, index) => {
-                        const studentAnswerRecord = result.attempt?.answers.find(a => a.questionId.toString() === q._id.toString());
-                        const isQuestionCorrect = studentAnswerRecord?.correct;
+                        const studentAnswer = result.attempt?.answers.find(a => a.questionId.toString() === q._id.toString());
+                        if (!studentAnswer) return <div key={q._id}>Could not load answer for question {index+1}</div>;
+                        
+                        const isCorrect = studentAnswer.correct;
 
                         if (q.type === 'mcq') {
-                          const studentChoiceIndex = studentAnswerRecord?.chosenIndex;
                           return (
-                              <div key={q._id} className={`p-4 rounded-lg border-2 ${isQuestionCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+                              <div key={q._id} className={`p-4 rounded-lg border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                                   <p className="font-semibold mb-2">{index + 1}. {q.text}</p>
                                   <div className="space-y-2">
                                       {q.options.map((opt, i) => {
-                                          const isStudentChoice = i === studentChoiceIndex;
+                                          const isStudentChoice = i === studentAnswer.chosenIndex;
                                           const isCorrectChoice = i === q.correctIndex;
-
+                                          
                                           return (
                                               <div key={i} className="flex items-center gap-2">
                                                   {isCorrectChoice && <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />}
@@ -447,25 +448,37 @@ const ModulePage = () => {
 
                         if (q.type === 'coding') {
                           return (
-                            <div key={q._id} className={`p-4 rounded-lg border-2 border-slate-200 bg-slate-50`}>
+                            <div key={q._id} className={`p-4 rounded-lg border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                                 <div className="flex justify-between items-center mb-2">
                                    <p className="font-semibold">{index + 1}. {q.text}</p>
-                                   <Badge variant="outline" className="border-blue-500 text-blue-700">Coding Exercise</Badge>
+                                   <Badge className={isCorrect ? "bg-green-600" : "bg-red-600"}>Score: {studentAnswer.score} / 10</Badge>
                                 </div>
                                 <p className="text-sm text-slate-700 whitespace-pre-wrap mb-4">{q.problemStatement}</p>
-                                <h4 className="font-semibold text-sm mb-2">Your Submission (Grading Pending):</h4>
+                                
+                                <h4 className="font-semibold text-sm mb-2">Test Case Results:</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
+                                  {studentAnswer.testCaseResults.map((tc, idx) => (
+                                    <div key={idx} className={`flex items-center gap-2 p-2 rounded-md ${tc.passed ? 'bg-green-100' : 'bg-red-100'}`}>
+                                      {tc.passed ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                      <span className="text-sm font-medium">Test Case {idx + 1}: {tc.passed ? "Passed" : "Failed"}</span>
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <h4 className="font-semibold text-sm mb-2">Your Submission:</h4>
                                 <CodeBlock>
                                   <CodeBlockHeader>
                                     <span className="text-xs font-sans text-slate-400">{q.language}</span>
                                   </CodeBlockHeader>
                                   <CodeBlockBody>
-                                    <CodeBlockContent code={studentAnswerRecord?.submittedCode || "// No code submitted."} language={q.language} />
+                                    <CodeBlockContent code={studentAnswer.submittedCode || "// No code submitted."} language={q.language} />
                                   </CodeBlockBody>
                                 </CodeBlock>
-                                {q.explanation && (
-                                  <div className="mt-3 p-2 bg-slate-100 rounded text-sm">
-                                      <p className="font-semibold">Hint/Explanation:</p>
-                                      <p className="text-slate-700">{q.explanation}</p>
+                                
+                                {!isCorrect && studentAnswer.generatedHint && (
+                                  <div className="mt-3 p-3 bg-yellow-100 border border-yellow-300 rounded text-sm">
+                                      <p className="font-semibold flex items-center"><Lightbulb className="h-4 w-4 mr-2 text-yellow-600" /> AI Hint:</p>
+                                      <p className="text-yellow-800">{studentAnswer.generatedHint}</p>
                                   </div>
                                 )}
                             </div>
