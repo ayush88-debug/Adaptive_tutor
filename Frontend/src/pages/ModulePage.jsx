@@ -6,9 +6,10 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription }
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, ArrowLeft, ArrowRight, BrainCircuit, FileCode, Play, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, ArrowRight, BrainCircuit, FileCode, Play, Loader2, CornerDownLeft } from 'lucide-react'; // Added icons
 import { CodeBlock, CodeBlockHeader, CodeBlockBody, CodeBlockContent, CodeBlockCopyButton } from '@/components/ui/CodeBlock';
 import CodeEditor from '@/components/ui/CodeEditor';
+import { Textarea } from "@/components/ui/textarea"; // Import Textarea
 
 const ModulePage = () => {
   const { moduleId } = useParams();
@@ -23,6 +24,7 @@ const ModulePage = () => {
 
   const [runOutput, setRunOutput] = useState(null);
   const [isRunning, setIsRunning] = useState(false);
+  const [stdin, setStdin] = useState(""); // NEW: State for custom input
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
@@ -74,7 +76,7 @@ const ModulePage = () => {
     setIsRunning(true);
     setRunOutput(null); // Clear previous output
     try {
-      const response = await api.executeCode(language, code);
+      const response = await api.executeCode(language, code, stdin);
       setRunOutput(response.output);
     } catch (err) {
       console.error("Run Code Error:", err);
@@ -326,8 +328,19 @@ const ModulePage = () => {
                          onChange={(value) => handleCodeChange(currentQuestion._id, value)}
                        />
                     </div>
-
-                    <div className="flex items-center gap-2 pt-2">
+                    
+                    {/* --- CUSTOM INPUT SECTION --- */}
+                    <div className="space-y-2 pt-2">
+                       <Label htmlFor="stdin" className="text-xs font-semibold text-slate-600">CUSTOM INPUT (stdin)</Label>
+                       <Textarea
+                         id="stdin"
+                         placeholder="Enter custom input to test your code..."
+                         className="font-mono text-sm h-24"
+                         value={stdin}
+                         onChange={(e) => setStdin(e.target.value)}
+                       />
+                    </div>
+                    <div className="flex items-center gap-2">
                       <Button 
                         variant="secondary" 
                         onClick={() => handleRunCode(currentQuestion.language, answers[currentQuestion._id]?.value)}
@@ -356,6 +369,7 @@ const ModulePage = () => {
                   onClick={() => {
                     setCurrentQuestionIndex(prev => prev - 1);
                     setRunOutput(null); // Clear output on nav
+                    setStdin(""); // Clear stdin on nav
                   }}
                   disabled={currentQuestionIndex === 0}
                 >
@@ -366,6 +380,7 @@ const ModulePage = () => {
                   <Button onClick={() => {
                     setCurrentQuestionIndex(prev => prev + 1);
                     setRunOutput(null); // Clear output on nav
+                    setStdin(""); // Clear stdin on nav
                   }}>
                     Next <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>

@@ -64,7 +64,7 @@ export const submitQuiz = (moduleId, answers) =>
 
 export const getAttemptHistory = (userId) => client.get(`/api/v1/attempts/user/${userId}`);
 
-export const executeCode = (language, sourceCode) => client.post("/api/v1/code/execute", { language, sourceCode });
+export const executeCode = (language, sourceCode, stdin) => client.post("/api/v1/code/execute", { language, sourceCode, stdin });
 
 // ... (Teacher)
 export const getStudentsProgress = () => client.get("/api/v1/admin/students-progress");
