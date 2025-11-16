@@ -254,3 +254,53 @@ export async function generateReport(student, attempts) {
     throw new apiError(500, `LLM generateReport failed: ${err.message}`);
   }
 }
+
+
+const hintSchema = z.object({
+  hint: z.string().describe("A concise, 1-2 sentence hint for the student, pointing them to the correct logic without giving the answer.")
+});
+
+const hintChain = llm.withStructuredOutput(hintSchema);
+
+export async function generateCodingHint(problemStatement, studentCode, failedTestCase, language) {
+  try {
+    const prompt = ChatPromptTemplate.fromMessages([
+      ["system", `You are an expert ${language} programming tutor. A student has failed a test case for a coding problem. Your task is to provide a brief, helpful hint.`],
+      ["human", `
+      Problem Statement:
+      """
+      {problemStatement}
+      """
+
+      Student's Code:
+      """
+      {studentCode}
+      """
+
+      Failed Test Case:
+      - Input: "{input}"
+      - Expected Output: "{expectedOutput}"
+      - Actual Output: "{actualOutput}"
+
+      Please provide a concise, 1-2 sentence hint to help the student identify their mistake (e.g., "Check your loop termination condition," "Think about how integer division works," or "Ensure you are handling the case where the input is empty."). Do not give the solution.
+      `],
+    ]);
+    const chain = prompt.pipe(hintChain);
+
+    const result = await chain.invoke({
+        problemStatement: problemStatement,
+        studentCode: studentCode,
+        input: failedTestCase.input,
+        expectedOutput: failedTestCase.expectedOutput,
+        actualOutput: failedTestCase.actualOutput,
+        language: language
+    });
+    
+    return result.hint;
+
+  } catch (err) {
+      console.error("Error in generateCodingHint:", err);
+      // Fallback hint in case of AI error
+      return "There seems to be an error with your logic. Review the problem statement and test case carefully.";
+  }
+}
