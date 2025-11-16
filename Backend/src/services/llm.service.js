@@ -40,8 +40,8 @@ const quizSchema = z.object({
         language: z.enum(["cpp", "java", "python"]).describe("The programming language for the exercise (cpp, java, python)."),
         starterCode: z.string().optional().describe("Optional starter code boilerplate for the student."),
         testCases: z.array(z.object({
-          input: z.string().optional().describe("Input for the test case (can be empty string for no input)."),
-          expectedOutput: z.string().describe("The expected output for the given input.")
+          input: z.string().optional().describe("Input for the test case (can be empty string for no input). Use '\\n' for newlines."),
+          expectedOutput: z.string().describe("The expected output for the given input. Use '\\n' for newlines.")
         })).min(1).describe("Mandatory array of at least one test case, including input and expected output."),
         explanation: z.string().optional().describe("Optional brief explanation or hint related to the coding problem.")
       })
@@ -124,10 +124,10 @@ export async function generateQuizFromLesson(lesson, languageKey) {
 
             3.  **Coding Question Format (CRITICAL):**
                 - **language:** You **MUST** set the 'language' field to **"{language}"**. Do not infer; use this exact value.
-                - **starterCode:** Provide **ONLY** the necessary boilerplate code (e.g., function signature, main method, imports). The core logic **MUST** be replaced with a clear comment (e.g., \`// TODO: Write your logic here\` or \`# TODO: Write your logic here\`). **DO NOT** provide the full solution in the starter code.
-                - **text:** A short title for the problem (e.g., "Reverse a String").
+                - **starterCode:** Provide **ONLY** the necessary boilerplate code (e.g., function signature, main method, imports). The code **MUST** be a complete driver program that reads from standard input (e.g., \`std::cin\`, \`input()\`, \`Scanner\`) for testing. For complex inputs like arrays, it **MUST** follow standard competitive programming format (e.g., first line: size \`n\`, second line: \`n\` space-separated elements). The core logic **MUST** be replaced with a clear comment (e.g., \`// TODO: Write your logic here\` or \`# TODO: Write your logic here\`). **DO NOT** provide the full solution in the starter code.
+                - **text:** A short title for the problem (e.g., "Find the Max Element in an Array").
                 - **problemStatement:** A detailed problem description.
-                - **testCases:** At least 2 test cases, each with 'input' (string, can be empty) and 'expectedOutput' (string).
+                - **testCases:** At least 2 test cases. The \`input\` string for each test case **MUST** precisely match the format expected by the \`starterCode\`. (e.g., if starter code reads a size 'n' then 'n' elements, the input string must be: \`"5\\n1 2 3 4 5"\`). Use \`\\n\` for newlines.
             `],
         ]);
         const chain = prompt.pipe(quizChain);
