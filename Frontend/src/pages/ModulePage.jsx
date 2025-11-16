@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription }
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, ArrowLeft, ArrowRight, BrainCircuit, FileCode, Youtube } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, ArrowRight, BrainCircuit, FileCode, Play, Loader2 } from 'lucide-react';
 import { CodeBlock, CodeBlockHeader, CodeBlockBody, CodeBlockContent, CodeBlockCopyButton } from '@/components/ui/CodeBlock';
 import CodeEditor from '@/components/ui/CodeEditor';
 
@@ -20,6 +20,9 @@ const ModulePage = () => {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  const [runOutput, setRunOutput] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
@@ -64,6 +67,21 @@ const ModulePage = () => {
       ...prev,
       [questionId]: { type: 'coding', value: codeString }
     }));
+  };
+
+  const handleRunCode = async (language, code) => {
+    if (!code) return;
+    setIsRunning(true);
+    setRunOutput(null); // Clear previous output
+    try {
+      const response = await api.executeCode(language, code);
+      setRunOutput(response.output);
+    } catch (err) {
+      console.error("Run Code Error:", err);
+      setRunOutput("Error: Failed to execute code. " + (err.response?.data?.message || err.message));
+    } finally {
+      setIsRunning(false);
+    }
   };
 
   const handleSubmitQuiz = async () => {
@@ -112,7 +130,6 @@ const ModulePage = () => {
 
      if (submissionPayload.length !== quizQuestions.length) {
         setError("Error formatting submission. Please try again.");
-        console.error("Submission payload length mismatch:", submissionPayload.length, quizQuestions.length);
         return;
     }
 
@@ -142,7 +159,7 @@ const ModulePage = () => {
     }
   };
 
-  // YouTube Helper Function (from your code)
+  // YouTube Helper Function
   const getYouTubeVideoId = (url) => {
     try {
       const urlObj = new URL(url);
@@ -293,20 +310,41 @@ const ModulePage = () => {
                       })}
                     </div>
                   </>
-                ) : ( // Render Coding Question UI
+                ) : ( 
+                  // --- Coding Question UI ---
                   <div className="space-y-4 flex flex-col flex-grow">
-                    <h3 className="text-lg font-semibold flex items-center"><FileCode className="h-5 w-5 mr-2 text-blue-600"/> {currentQuestion.text}</h3>
+                    <div className="flex justify-between items-start">
+                      <h3 className="text-lg font-semibold flex items-center"><FileCode className="h-5 w-5 mr-2 text-blue-600"/> {currentQuestion.text}</h3>
+                      <Badge variant="secondary">{currentQuestion.language}</Badge>
+                    </div>
                     <p className="text-sm text-slate-700 whitespace-pre-wrap">{currentQuestion.problemStatement}</p>
-                    <div className="flex-grow">
+                    
+                    <div className="flex-grow border rounded-md overflow-hidden">
                        <CodeEditor
                          language={currentQuestion.language}
                          value={answers[currentQuestion._id]?.value ?? ''}
                          onChange={(value) => handleCodeChange(currentQuestion._id, value)}
                        />
                     </div>
-                    <div className="pt-2">
-                      <Button variant="outline" disabled={true}>Run Code (Coming Soon)</Button>
+
+                    <div className="flex items-center gap-2 pt-2">
+                      <Button 
+                        variant="secondary" 
+                        onClick={() => handleRunCode(currentQuestion.language, answers[currentQuestion._id]?.value)}
+                        disabled={isRunning || !answers[currentQuestion._id]?.value}
+                        className="w-32"
+                      >
+                        {isRunning ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Play className="h-4 w-4 mr-2" /> Run Code</>}
+                      </Button>
                     </div>
+                    
+                    {/* Output Console */}
+                    {runOutput !== null && (
+                      <div className="mt-4 p-4 bg-slate-900 text-slate-100 rounded-md font-mono text-sm whitespace-pre-wrap max-h-40 overflow-y-auto border border-slate-700">
+                        <div className="text-xs text-slate-500 mb-1 border-b border-slate-700 pb-1">OUTPUT</div>
+                        {runOutput}
+                      </div>
+                    )}
                   </div>
                 )}
                  {error && view === 'quiz' && <p className="text-center text-sm text-red-500 mt-4">{error}</p>}
@@ -315,14 +353,20 @@ const ModulePage = () => {
             <CardFooter className="flex justify-between border-t pt-4">
                 <Button
                   variant="outline"
-                  onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+                  onClick={() => {
+                    setCurrentQuestionIndex(prev => prev - 1);
+                    setRunOutput(null); // Clear output on nav
+                  }}
                   disabled={currentQuestionIndex === 0}
                 >
                   <ArrowLeft className="h-4 w-4 mr-2" /> Previous
                 </Button>
 
                 {currentQuestionIndex < quizQuestions.length - 1 ? (
-                  <Button onClick={() => setCurrentQuestionIndex(prev => prev + 1)}>
+                  <Button onClick={() => {
+                    setCurrentQuestionIndex(prev => prev + 1);
+                    setRunOutput(null); // Clear output on nav
+                  }}>
                     Next <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 ) : (
@@ -351,7 +395,7 @@ const ModulePage = () => {
                 <div className="space-y-6">
                     {quizId.questions.map((q, index) => {
                         const studentAnswerRecord = result.attempt?.answers.find(a => a.questionId.toString() === q._id.toString());
-                        const isQuestionCorrect = studentAnswerRecord?.correct; // Correctness is currently only based on MCQs
+                        const isQuestionCorrect = studentAnswerRecord?.correct;
 
                         if (q.type === 'mcq') {
                           const studentChoiceIndex = studentAnswerRecord?.chosenIndex;
@@ -387,7 +431,6 @@ const ModulePage = () => {
                         }
 
                         if (q.type === 'coding') {
-                          // For coding questions, use neutral styling as grading is pending
                           return (
                             <div key={q._id} className={`p-4 rounded-lg border-2 border-slate-200 bg-slate-50`}>
                                 <div className="flex justify-between items-center mb-2">
