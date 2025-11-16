@@ -37,7 +37,7 @@ const quizSchema = z.object({
         type: z.literal("coding"),
         text: z.string().describe("The mandatory title or brief description of the coding problem."),
         problemStatement: z.string().describe("The mandatory detailed problem statement for the coding exercise."),
-        language: z.enum(["cpp", "java", "python"]).describe("The programming language for the exercise (cpp, java, or python)."),
+        language: z.enum(["cpp", "java", "python"]).describe("The programming language for the exercise (cpp, java, python)."),
         starterCode: z.string().optional().describe("Optional starter code boilerplate for the student."),
         testCases: z.array(z.object({
           input: z.string().optional().describe("Input for the test case (can be empty string for no input)."),
@@ -46,7 +46,7 @@ const quizSchema = z.object({
         explanation: z.string().optional().describe("Optional brief explanation or hint related to the coding problem.")
       })
     ])
-  ).length(10).describe("A mandatory array of exactly 10 questions, mixing MCQs and coding exercises where appropriate.") 
+  ).length(10).describe("A mandatory array of exactly 10 questions, mixing MCQs and coding exercises where appropriate. *MUST* follow the specified distribution based on subject type. *MUST* add coding questions for technical subjects.")
 });
 
 const lessonChain = llm.withStructuredOutput(lessonSchema);
@@ -66,7 +66,7 @@ export async function generateLesson(seedTopic, { user } = {}) {
       2.  **Sections**: At least four detailed sections. Each section must contain:
           - A clear \`heading\`.
           - A detailed, multi-paragraph \`body\` of text that explains the concept in depth. Use real-world analogies.
-          - For sections explaining a technical concept, you **MUST** include a \`codeSample\`. This should be a complete, runnable, and well-commented C++ program. For introductory or summary sections, you can omit the \`codeSample\`. Ensure at least two sections in total have a \`codeSample\`.
+          - For sections explaining a technical concept (like Encapsulation, Inheritance, Polymorphism, Variables, Pointers, etc.), you **MUST** include a \`codeSample\`. This is not optional for technical topics. The code must be a complete, runnable, and well-commented program. For purely introductory or summary sections, you can omit the \`codeSample\`. You must ensure that at least two sections in total have a code sample.
       3.  **Key Takeaways**: A list of at least four concise summary points.
 
       The content must be thorough and beginner-friendly, providing a solid foundation on the topic.
@@ -82,31 +82,52 @@ export async function generateLesson(seedTopic, { user } = {}) {
   }
 }
 
-export async function generateQuizFromLesson(lesson, moduleId) {
+
+// It now accepts a languageKey to force the language
+export async function generateQuizFromLesson(lesson, languageKey) {
     try {
-        let languageHint = 'cpp';
-        if (lesson.title.toLowerCase().includes('java')) languageHint = 'java';
-        if (lesson.title.toLowerCase().includes('python')) languageHint = 'python';
+        // Map subject key to a language ID recognized by the AI/editor
+        // Default to 'cpp' if key is 'oop' or not recognized
+        let language;
+        switch(languageKey) {
+            case 'java':
+                language = 'java';
+                break;
+            case 'python':
+                language = 'python';
+                break;
+            case 'cpp':
+            case 'oop': // OOP is taught using C++ in our curriculum
+            case 'dsa': // Assume DSA is taught with C++
+            default:
+                language = 'cpp';
+        }
+        // For theoretical subjects, we still pass the language, but the prompt
+        // gives the AI instructions to only use MCQs.
+        const isTechnicalSubject = ['cpp', 'oop', 'dsa', 'java', 'python'].includes(languageKey);
+
 
         const prompt = ChatPromptTemplate.fromMessages([
             ["system", `You are an expert quiz designer for a Computer Science learning platform. Your task is to create a quiz with a mix of Multiple Choice Questions (MCQs) and practical Coding Exercises based on the provided lesson content. The output must be a structured JSON object.`],
             ["human", `
             Lesson Title: "{title}"
             Lesson Content Summary: {contentSummary}
+            Subject Language: "{language}"
 
-            Please generate a quiz for this lesson adhering to the following structure:
-            1.  **Total Questions:** You must generate **exactly 10 questions** in total.
-            2.  **Question Mix:** Include 1-3 relevant 'coding' type questions ONLY IF the lesson content involves significant code examples or practical programming concepts (like OOP, DSA, or specific language features). For purely theoretical lessons, all 10 questions should be 'mcq'.
-            3.  **MCQ Format:** For 'mcq' type: include 'text', 'options' (array of 4 strings), 'correctIndex' (0-3), and 'explanation'.
-            4.  **Coding Question Format:** For 'coding' type:
-                - Include 'text' (a short title for the problem).
-                - Include a detailed 'problemStatement' describing the task.
-                - Include the 'language' (use '{languageHint}' if appropriate, otherwise infer from content). Supported languages: 'cpp', 'java', 'python'.
-                - Include optional 'starterCode' if helpful.
-                - **Crucially**, include at least 2 'testCases', each with an 'input' (string, can be empty) and 'expectedOutput' (string).
-                - Include an optional 'explanation' or hint.
+            Please generate **exactly 10 questions** for this lesson adhering to the following structure:
+            
+            1.  **Question Mix:**
+                - If the subject is technical (like C++, Java, Python, DSA, OOP), you **MUST** include **at least 2** 'coding' type questions. The rest should be 'mcq'.
+                - If the subject is theoretical (like OS, DBMS, CN), you should **ONLY** use 'mcq' questions, unless the lesson summary *explicitly* contains code (e.g., SQL queries for DBMS).
 
-            Ensure the questions accurately assess understanding of the key concepts from the lesson summary.
+            2.  **MCQ Format:** For 'mcq' type: include 'text', 'options' (array of 4 strings), 'correctIndex' (0-3), and 'explanation'.
+
+            3.  **Coding Question Format (CRITICAL):**
+                - **language:** You **MUST** set the 'language' field to **"{language}"**. Do not infer; use this exact value.
+                - **starterCode:** Provide **ONLY** the necessary boilerplate code (e.g., function signature, main method, imports). The core logic **MUST** be replaced with a clear comment (e.g., \`// TODO: Write your logic here\` or \`# TODO: Write your logic here\`). **DO NOT** provide the full solution in the starter code.
+                - **text:** A short title for the problem (e.g., "Reverse a String").
+                - **problemStatement:** A detailed problem description.
+                - **testCases:** At least 2 test cases, each with 'input' (string, can be empty) and 'expectedOutput' (string).
             `],
         ]);
         const chain = prompt.pipe(quizChain);
@@ -117,7 +138,7 @@ export async function generateQuizFromLesson(lesson, moduleId) {
         const result = await chain.invoke({
             title: lesson.title,
             contentSummary: contentSummary,
-            languageHint: languageHint
+            language: language // Pass the determined language
         });
         return result;
     } catch (err) {
@@ -126,8 +147,26 @@ export async function generateQuizFromLesson(lesson, moduleId) {
     }
 }
 
-export async function generateRemedialLesson(quiz, attempt, moduleTitle) {
+
+// generateRemedialLesson (also updated to pass languageKey)
+export async function generateRemedialLesson(quiz, attempt, moduleTitle, languageKey) {
   try {
+    // Map language key
+    let language;
+    switch(languageKey) {
+        case 'java':
+            language = 'java';
+            break;
+        case 'python':
+            language = 'python';
+            break;
+        case 'cpp':
+        case 'oop':
+        case 'dsa':
+        default:
+            language = 'cpp';
+    }
+
     const prompt = ChatPromptTemplate.fromMessages([
       ["system", `You are a patient and encouraging tutor. A student has struggled with a quiz. Your task is to generate a simpler, more focused remedial lesson in a structured JSON format. The lesson should be as detailed and clear as a main lesson but focus only on the problem areas.`],
       ["human", `A student scored {score} on a quiz about "{topic}". They particularly struggled with questions about these concepts: {wrongQuestions}. 
@@ -137,7 +176,7 @@ export async function generateRemedialLesson(quiz, attempt, moduleTitle) {
       2.  **Sections**: At least four detailed sections. For each section:
           - Use a clear \`heading\`.
           - Write a detailed \`body\` that breaks down the concept simply. Use a new analogy to explain it.
-          - For technical sections, include a simple, well-commented \`codeSample\`. Ensure at least two sections have a code sample.
+          - For technical sections, include a simple, well-commented \`codeSample\`. Ensure at least two sections have a code sample. This code **MUST** be in the **{language}** language.
       3.  **Key Takeaways**: Summarize the most critical points in a short list of at least four items.
       
       The tone must be supportive and help rebuild the student's confidence.`],
@@ -146,13 +185,17 @@ export async function generateRemedialLesson(quiz, attempt, moduleTitle) {
 
     const wrongQuestions = attempt.answers
         .filter(a => !a.correct)
-        .map(a => quiz.questions.find(q => q._id.toString() === a.questionId.toString())?.text)
+        .map(a => {
+            const q = quiz.questions.find(q => q._id.toString() === a.questionId.toString());
+            return q ? q.text : 'a failed question'; // Get text of failed question
+        })
         .filter(Boolean);
 
     const result = await chain.invoke({
         score: attempt.score,
         topic: moduleTitle,
-        wrongQuestions: wrongQuestions.join(', ') || "General review needed"
+        wrongQuestions: wrongQuestions.join(', ') || "General review needed",
+        language: language
     });
     
     result._meta = { model: MODEL, remedialForAttempt: attempt._id };

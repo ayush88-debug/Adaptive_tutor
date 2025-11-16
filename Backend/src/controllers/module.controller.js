@@ -11,10 +11,13 @@ const getModuleForStudent = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const userId = req.user._id;
 
-    const module = await Module.findById(id).populate('subjectId', 'title');
+    const module = await Module.findById(id).populate('subjectId', 'title key');
     if (!module) {
         throw new apiError(404, "Module not found. Please ensure you are using a valid ID.");
     }
+    
+    // Extract the language key from the populated subject
+    const languageKey = module.subjectId.key || 'cpp'; // Default to 'cpp' if key is missing
 
     const progress = await StudentProgress.findOne({ userId, subjectId: module.subjectId._id });
     if (!progress) {
@@ -44,7 +47,8 @@ const getModuleForStudent = asyncHandler(async (req, res) => {
         session.startTransaction();
         try {
             const lesson = await llmService.generateLesson(module.seedTopic);
-            const quizData = await llmService.generateQuizFromLesson(lesson);
+            // **UPDATED:** Pass the languageKey to the quiz generator
+            const quizData = await llmService.generateQuizFromLesson(lesson, languageKey); 
             const newQuiz = await Quiz.create([{ moduleId: module._id, questions: quizData.questions }], { session });
 
             module.content = lesson;
@@ -63,9 +67,11 @@ const getModuleForStudent = asyncHandler(async (req, res) => {
     }
     
     console.log(`Serving standard content for module ${id} to user ${userId}`);
-    const populatedModule = await Module.findById(id).populate("quizId").populate("subjectId", "title");
+    // **UPDATED:** Repopulate quizId *after* potential generation
+    const populatedModule = await Module.findById(id)
+        .populate("quizId")
+        .populate("subjectId", "title key");
     
-    // --- NEW: Add the isCompleted flag to the final module object ---
     const finalModuleData = {
         ...populatedModule.toObject(),
         isCompleted

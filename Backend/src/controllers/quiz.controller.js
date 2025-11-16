@@ -13,8 +13,11 @@ const submitQuiz = asyncHandler(async (req, res) => {
   const userId = req.user._id;
   const { answers } = req.body; 
 
-  const module = await Module.findById(moduleId);
+  // **UPDATED:** Populate subjectId and key immediately
+  const module = await Module.findById(moduleId).populate('subjectId', 'key');
   if (!module) throw new apiError(404, "Module not found");
+  
+  const languageKey = module.subjectId.key || 'cpp'; // Get language key
 
   const progress = await StudentProgress.findOne({ userId, subjectId: module.subjectId });
   if (!progress) throw new apiError(400, "Student is not enrolled in this subject.");
@@ -34,7 +37,7 @@ const submitQuiz = asyncHandler(async (req, res) => {
     if (!q) return null; 
 
     if (q.type === 'mcq') {
-      const chosenIndexNum = parseInt(a.chosenIndex);
+      const chosenIndexNum = a.chosenIndex !== null ? parseInt(a.chosenIndex) : null;
       const correct = q.correctIndex === chosenIndexNum;
       if (correct) correctMcqCount++;
       return { 
@@ -53,11 +56,8 @@ const submitQuiz = asyncHandler(async (req, res) => {
     return null;
   }).filter(Boolean); 
 
-  
-  const score = totalMcqCount > 0 ? Math.round((correctMcqCount / totalMcqCount) * 100) : 100; 
-  
-  
-  
+  // Score is based ONLY on MCQs for now.
+  const score = totalMcqCount > 0 ? Math.round((correctMcqCount / totalMcqCount) * 100) : 100;
   const passed = score >= 90;
 
   const newAttempt = await Attempt.create({ 
@@ -76,8 +76,9 @@ const submitQuiz = asyncHandler(async (req, res) => {
     progress.moduleOverrides = progress.moduleOverrides.filter(o => o.moduleId.toString() !== moduleId);
   } else {
     console.log("Quiz failed. Generating personalized remedial content...");
-    const remedialLesson = await llmService.generateRemedialLesson(quiz, newAttempt, module.title);
-    const newQuizData = await llmService.generateQuizFromLesson(remedialLesson);
+    // **UPDATED:** Pass languageKey to remedial generators
+    const remedialLesson = await llmService.generateRemedialLesson(quiz, newAttempt, module.title, languageKey);
+    const newQuizData = await llmService.generateQuizFromLesson(remedialLesson, languageKey);
     const newQuiz = await Quiz.create({ moduleId, questions: newQuizData.questions });
 
     const newOverride = {
