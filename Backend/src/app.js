@@ -50,4 +50,7 @@ import progressRoutes from './routes/progress.route.js';
 app.use('/api/v1/reports', reportRoutes);
 app.use('/api/v1/progress', progressRoutes);
 
+import codeRoutes from './routes/code.route.js';
+app.use('/api/v1/code', codeRoutes);
+
 export default app;
