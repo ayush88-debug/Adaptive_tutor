@@ -321,6 +321,17 @@ const ModulePage = () => {
                     </div>
                     <p className="text-sm text-slate-700 whitespace-pre-wrap">{currentQuestion.problemStatement}</p>
                     
+                    {/* --- NEW: Example Test Case --- */}
+                    {currentQuestion.testCases && currentQuestion.testCases[0] && (
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-slate-600">EXAMPLE TEST CASE</Label>
+                        <Card className="bg-slate-50 p-3 font-mono text-sm">
+                          <p><span className="font-semibold">Input:</span> {currentQuestion.testCases[0].input || '""'}</p>
+                          <p><span className="font-semibold">Expected Output:</span> {currentQuestion.testCases[0].expectedOutput}</p>
+                        </Card>
+                      </div>
+                    )}
+                    
                     <div className="flex-grow border rounded-md overflow-hidden">
                        <CodeEditor
                          language={currentQuestion.language}
@@ -451,16 +462,23 @@ const ModulePage = () => {
                             <div key={q._id} className={`p-4 rounded-lg border-2 ${isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
                                 <div className="flex justify-between items-center mb-2">
                                    <p className="font-semibold">{index + 1}. {q.text}</p>
-                                   <Badge className={isCorrect ? "bg-green-600" : "bg-red-600"}>Score: {studentAnswer.score} / 10</Badge>
+                                   <Badge className={isCorrect ? "bg-green-600 text-white" : "bg-red-600 text-white"}>Score: {studentAnswer.score} / 10</Badge>
                                 </div>
                                 <p className="text-sm text-slate-700 whitespace-pre-wrap mb-4">{q.problemStatement}</p>
                                 
                                 <h4 className="font-semibold text-sm mb-2">Test Case Results:</h4>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-4">
                                   {studentAnswer.testCaseResults.map((tc, idx) => (
-                                    <div key={idx} className={`flex items-center gap-2 p-2 rounded-md ${tc.passed ? 'bg-green-100' : 'bg-red-100'}`}>
-                                      {tc.passed ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
-                                      <span className="text-sm font-medium">Test Case {idx + 1}: {tc.passed ? "Passed" : "Failed"}</span>
+                                    <div key={idx} className={`p-3 rounded-md ${tc.passed ? 'bg-green-100 border border-green-300' : 'bg-red-100 border border-red-300'}`}>
+                                      <div className="flex items-center gap-2 mb-2">
+                                        {tc.passed ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <XCircle className="h-4 w-4 text-red-600" />}
+                                        <span className={`text-sm font-semibold ${tc.passed ? 'text-green-700' : 'text-red-700'}`}>Test Case {idx + 1}: {tc.passed ? "Passed" : "Failed"}</span>
+                                      </div>
+                                      <div className="font-mono text-xs p-2 bg-white rounded">
+                                        <p><span className="font-semibold">Input:</span> {tc.input || '""'}</p>
+                                        <p><span className="font-semibold">Expected:</span> {tc.expectedOutput}</p>
+                                        {!tc.passed && <p><span className="font-semibold text-red-700">Got:</span> {tc.actualOutput}</p>}
+                                      </div>
                                     </div>
                                   ))}
                                 </div>
