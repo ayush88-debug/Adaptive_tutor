@@ -12,8 +12,20 @@ const LANGUAGE_IDS = {
     'python': 71    // Python (3.8.1)
 };
 
+// Helper function to safely decode Base64
+const decodeBase64 = (str) => {
+    if (!str) return null;
+    try {
+        // Use Node.js Buffer to decode
+        return Buffer.from(str, 'base64').toString('utf-8');
+    } catch (e) {
+        // If it's not valid Base64, just return the original string
+        return str;
+    }
+}
+
 const executeCode = asyncHandler(async (req, res) => {
-    const { language, sourceCode } = req.body;
+    const { language, sourceCode, stdin } = req.body; // Added stdin
 
     if (!language || !sourceCode) {
         throw new apiError(400, "Language and source code are required");
@@ -27,11 +39,7 @@ const executeCode = asyncHandler(async (req, res) => {
     const options = {
         method: 'POST',
         url: JUDGE0_API_URL,
-        params: { base64_encoded: 'false', fields: '*' }, // wait=true is handled by axios differently or we poll. 
-        // For simplicity in this tier, we use the synchronous '?wait=true' feature of Judge0 if available, 
-        // but standard practice is to submit -> get token -> get result. 
-        // However, Judge0 allows a sync submission via `?base64_encoded=true&wait=true`
-        params: { base64_encoded: 'false', wait: 'true' }, 
+        params: { base64_encoded: 'true', wait: 'true' }, 
         headers: {
             'content-type': 'application/json',
             'Content-Type': 'application/json',
@@ -40,8 +48,8 @@ const executeCode = asyncHandler(async (req, res) => {
         },
         data: {
             language_id: languageId,
-            source_code: sourceCode,
-            stdin: ""
+            source_code: Buffer.from(sourceCode).toString('base64'),
+            stdin: Buffer.from(stdin || "").toString('base64')
         }
     };
 
@@ -49,30 +57,37 @@ const executeCode = asyncHandler(async (req, res) => {
         const response = await axios.request(options);
         const result = response.data;
 
-        // Judge0 returns a 'status' object. ID 3 means "Accepted" (Success).
-        // Other IDs indicate errors (Compilation Error, Runtime Error, etc.)
-        
+        const decodedStdout = decodeBase64(result.stdout);
+        const decodedStderr = decodeBase64(result.stderr);
+        const decodedCompileOutput = decodeBase64(result.compile_output);
+        const decodedMessage = decodeBase64(result.message);
+
         let output = "";
-        if (result.stdout) {
-            output += result.stdout;
+        if (decodedStdout) {
+            output += decodedStdout;
         }
-        if (result.stderr) {
-            output += `\nError:\n${result.stderr}`;
+        if (decodedStderr) {
+            output += `\nRuntime Error:\n${decodedStderr}`;
         }
-        if (result.compile_output) {
-             output += `\nCompilation:\n${result.compile_output}`;
+        if (decodedCompileOutput) {
+             output += `\nCompilation Error:\n${decodedCompileOutput}`;
         }
+         if (decodedMessage) {
+             output += `\nMessage:\n${decodedMessage}`;
+         }
 
         return res.status(200).json(new apiResponse(200, { 
-            output: output || "No output",
+            output: output || "Execution finished with no output.",
             status: result.status,
             time: result.time,
             memory: result.memory
         }, "Code executed successfully"));
 
     } catch (error) {
-        console.error("Judge0 Error:", error);
-        throw new apiError(500, "Failed to execute code via external service");
+        // Improved error logging
+        const errorData = error.response ? error.response.data : error.message;
+        console.error("Judge0 Error:", errorData);
+        throw new apiError(500, "Failed to execute code via external service", [errorData]);
     }
 });
 
