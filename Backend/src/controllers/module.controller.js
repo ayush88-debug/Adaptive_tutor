@@ -29,7 +29,7 @@ const getModuleForStudent = asyncHandler(async (req, res) => {
 
     const override = progress.moduleOverrides.find(o => o.moduleId.toString() === id);
     if (override) {
-        console.log(`Serving personalized remedial content for module ${id} to user ${userId}`);
+        console.log(`Serving personalized remedial content for module ${id} to user ${userId} and quizid ${override.quizId}`);
         const quiz = await Quiz.findById(override.quizId);
         const personalizedModule = { 
             ...module.toObject(), 
